@@ -11,3 +11,6 @@ samples/
 *.jpeg
 *.png
 *.heic
+
+# benchmark photos are downloaded on demand (credited in manifest.json)
+benchmark/images/

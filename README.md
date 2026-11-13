@@ -51,6 +51,17 @@ pytest -q
 
 The suite runs in mock mode, so CI never downloads weights. If torch and transformers are installed, `tests/test_models_offline.py` also runs the real (non-mock) code paths against tiny, randomly initialized OWLv2 and CLIP models. That checks shapes, batching, box coordinates and library compatibility (tested on transformers 4.46 and 5.x) without downloading anything.
 
+## Benchmark
+
+`scripts/benchmark.py` measures LeakLens on freely licensed street photos from 20 US cities (`benchmark/cities.csv`, from New York to Anchorage):
+
+```bash
+python scripts/benchmark.py fetch     # downloads 1 photo per city from Wikimedia Commons, with credits
+python scripts/benchmark.py run       # analyze + Make it safe on each, logs to benchmark/results/<timestamp>/
+```
+
+It reports country and state accuracy (top 1 and top 5), map-pin distance error (median, % within 25/200/750 km), risk before and after Make it safe, and timing. Results go to `results.csv` and `summary.md`, with photo credits. EXIF is stripped first so the numbers reflect what the pixels give away (`--keep-exif` to include it).
+
 ## Configuration
 
 All settings live in `app/config.py` and can be overridden with environment variables:

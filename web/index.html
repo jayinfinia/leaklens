@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LeakLens</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --bg: #0e1116; --panel: #161b22; --line: #2a313c; --text: #e6edf3; --muted: #8b949e;
+    --low: #3fb950; --medium: #d29922; --high: #f85149; --accent: #58a6ff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 system-ui, -apple-system, Segoe UI, sans-serif; background: var(--bg); color: var(--text); }
+  header { padding: 20px 28px; border-bottom: 1px solid var(--line); display: flex; align-items: baseline; gap: 14px; }
+  header h1 { margin: 0; font-size: 22px; letter-spacing: .3px; }
+  header p { margin: 0; color: var(--muted); }
+  .badge { font-size: 12px; padding: 2px 8px; border: 1px solid var(--medium); color: var(--medium); border-radius: 99px; }
+  main { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr); gap: 20px; padding: 20px 28px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .panel h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  #drop { border: 2px dashed var(--line); border-radius: 10px; padding: 48px 20px; text-align: center; color: var(--muted); cursor: pointer; }
+  #drop.over { border-color: var(--accent); color: var(--text); }
+  .stage { position: relative; display: none; }
+  .stage img { width: 100%; display: block; border-radius: 6px; }
+  .box { position: absolute; border: 2px solid var(--high); border-radius: 3px; background: rgba(248,81,73,.12); }
+  .box.off { border-style: dashed; opacity: .35; }
+  .box span { position: absolute; top: -20px; left: -2px; font-size: 11px; background: var(--high); color: #fff; padding: 1px 5px; border-radius: 3px; white-space: nowrap; }
+  .risk { display: flex; align-items: center; gap: 14px; }
+  .score { font-size: 44px; font-weight: 700; line-height: 1; }
+  .level { font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+  .meter { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; margin: 10px 0 4px; }
+  .meter div { height: 100%; transition: width .5s; }
+  .low { color: var(--low); } .medium { color: var(--medium); } .high { color: var(--high); }
+  .bg-low { background: var(--low); } .bg-medium { background: var(--medium); } .bg-high { background: var(--high); }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li.clue { display: flex; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+  li.clue small, .factor small { color: var(--muted); display: block; }
+  .factor { padding: 6px 0; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 10px; }
+  #map { height: 220px; border-radius: 6px; margin-top: 10px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  button, a.btn { background: var(--accent); color: #04121f; border: 0; border-radius: 6px; padding: 9px 16px; font-weight: 600; cursor: pointer; text-decoration: none; }
+  button.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+  button:disabled { opacity: .5; cursor: wait; }
+  .stack > * + * { margin-top: 16px; }
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .compare img { width: 100%; border-radius: 6px; }
+  .muted { color: var(--muted); }
+  #error { color: var(--high); }
+</style>
+</head>
+<body>
+<header>
+  <h1>LeakLens</h1>
+  <p>See what your photo gives away before you post it.</p>
+  <span id="mockBadge" class="badge" hidden>mock mode</span>
+</header>
+
+<main>
+  <section class="stack">
+    <div class="panel">
+      <div id="drop">Drop a photo here, or click to choose one<br><small>Analyzed locally. Nothing is stored.</small></div>
+      <input id="file" type="file" accept="image/*" hidden>
+      <div class="stage" id="stage"><img id="photo" alt="Uploaded photo"></div>
+      <p id="status" class="muted"></p>
+      <p id="error"></p>
+      <div class="row" id="actions" hidden>
+        <button id="scrubBtn">Scrub selected clues</button>
+        <button id="resetBtn" class="ghost">New photo</button>
+      </div>
+    </div>
+
+    <div class="panel" id="afterPanel" hidden>
+      <h2>Before / after</h2>
+      <div class="compare">
+        <div><img id="beforeImg" alt="Original"><p id="beforeRisk"></p></div>
+        <div><img id="afterImg" alt="Scrubbed"><p id="afterRisk"></p></div>
+      </div>
+      <p id="afterGeo" class="muted"></p>
+      <div class="row"><a id="download" class="btn" download="leaklens-clean.jpg">Download clean photo</a></div>
+    </div>
+  </section>
+
+  <section class="stack" id="report" hidden>
+    <div class="panel">
+      <h2>Location risk</h2>
+      <div class="risk"><div id="score" class="score">0</div><div id="level" class="level"></div></div>
+      <div class="meter"><div id="meterFill"></div></div>
+    </div>
+
+    <div class="panel">
+      <h2>Where models think this is</h2>
+      <div id="geoSummary"></div>
+      <div id="map"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Clues found</h2>
+      <ul id="clues"></ul>
+    </div>
+
+    <div class="panel">
+      <h2>Metadata</h2>
+      <div id="exif"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Why this score</h2>
+      <div id="factors"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let currentFile = null, analysis = null, map = null, markers = [];
+
+fetch("/api/health").then(r => r.json()).then(h => { $("mockBadge").hidden = !h.mock; }).catch(() => {});
+
+$("drop").onclick = () => $("file").click();
+$("file").onchange = (e) => e.target.files[0] && start(e.target.files[0]);
+["dragover", "dragenter"].forEach(ev => $("drop").addEventListener(ev, e => { e.preventDefault(); $("drop").classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => $("drop").addEventListener(ev, e => { e.preventDefault(); $("drop").classList.remove("over"); }));
+$("drop").addEventListener("drop", e => e.dataTransfer.files[0] && start(e.dataTransfer.files[0]));
+$("resetBtn").onclick = () => location.reload();
+$("scrubBtn").onclick = scrub;
+
+function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
+async function start(file) {
+  currentFile = file;
+  $("error").textContent = "";
+  $("drop").style.display = "none";
+  $("stage").style.display = "block";
+  $("photo").src = URL.createObjectURL(file);
+  $("status").textContent = "Analyzing… (first run loads the models)";
+  const fd = new FormData(); fd.append("file", file);
+  try {
+    const res = await fetch("/api/analyze", { method: "POST", body: fd });
+    if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+    analysis = await res.json();
+    render(analysis);
+    $("status").textContent = "";
+  } catch (err) {
+    $("status").textContent = "";
+    $("error").textContent = "Analysis failed: " + err.message;
+  }
+}
+
+function render(a) {
+  $("report").hidden = false;
+  $("actions").hidden = false;
+  setRisk(a.risk, "score", "level", "meterFill");
+  drawBoxes(a);
+
+  // Clues, each with a checkbox (checked = will be blurred)
+  $("clues").innerHTML = a.clues.length ? "" : "<li class='muted'>No visual clues detected.</li>";
+  a.clues.forEach(c => {
+    const li = document.createElement("li");
+    li.className = "clue";
+    const name = c.kind === "text" ? `Text: “${esc(c.label)}”` : esc(c.category.replace(/_/g, " "));
+    li.innerHTML = `<input type="checkbox" checked data-id="${c.id}"><div><b>${name}</b> <span class="muted">${Math.round(c.score * 100)}%</span><small>${esc(c.reason)}</small></div>`;
+    li.querySelector("input").onchange = (e) => document.querySelector(`.box[data-id="${c.id}"]`)?.classList.toggle("off", !e.target.checked);
+    $("clues").appendChild(li);
+  });
+
+  // Metadata
+  const ex = a.exif;
+  $("exif").innerHTML = !ex.has_exif ? "<span class='low'>No metadata found.</span>" : [
+    ex.gps ? `<div class="high"><b>GPS:</b> ${ex.gps.lat}, ${ex.gps.lon}</div>` : "<div class='low'>No GPS coordinates.</div>",
+    ex.taken_at ? `<div><b>Taken:</b> ${esc(ex.taken_at)}</div>` : "",
+    ex.device ? `<div><b>Device:</b> ${esc(ex.device)}</div>` : "",
+    "<small class='muted'>Scrubbing removes all metadata.</small>",
+  ].join("");
+
+  // Geolocation + map
+  const g = a.geolocation;
+  const alts = (g.region.length ? g.region : g.country).slice(1, 4).map(x => `${esc(x.name)} ${Math.round(x.prob * 100)}%`).join(" · ");
+  $("geoSummary").innerHTML = `<b>${esc(g.summary)}</b>${alts ? `<br><small class="muted">Also: ${alts}</small>` : ""}`;
+  drawMap(g.points, ex.gps);
+
+  $("factors").innerHTML = a.risk.factors.map(f =>
+    `<div class="factor"><div>${esc(f.reason)}<small>${esc(f.source)}</small></div><b>+${Math.round(f.points * 8)}</b></div>`).join("");
+}
+
+function setRisk(r, scoreId, levelId, fillId) {
+  $(scoreId).textContent = r.score;
+  $(scoreId).className = "score " + r.level;
+  $(levelId).textContent = r.level + " risk";
+  $(levelId).className = "level " + r.level;
+  if (fillId) { $(fillId).style.width = r.score + "%"; $(fillId).className = "bg-" + r.level; }
+}
+
+function drawBoxes(a) {
+  document.querySelectorAll(".box").forEach(b => b.remove());
+  a.clues.forEach(c => {
+    const [x0, y0, x1, y1] = c.box;
+    const d = document.createElement("div");
+    d.className = "box"; d.dataset.id = c.id;
+    Object.assign(d.style, {
+      left: (x0 / a.width * 100) + "%", top: (y0 / a.height * 100) + "%",
+      width: ((x1 - x0) / a.width * 100) + "%", height: ((y1 - y0) / a.height * 100) + "%",
+    });
+    d.innerHTML = `<span>${c.kind === "text" ? "text" : esc(c.category.replace(/_/g, " "))}</span>`;
+    $("stage").appendChild(d);
+  });
+}
+
+function drawMap(points, gps) {
+  if (!map) {
+    map = L.map("map", { worldCopyJump: true }).setView([20, 0], 1);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap" }).addTo(map);
+  }
+  markers.forEach(m => m.remove()); markers = [];
+  points.forEach((p, i) => markers.push(
+    L.circleMarker([p.lat, p.lon], { radius: i ? 6 : 10, color: "#f85149", fillOpacity: i ? .3 : .7 })
+      .bindTooltip(`Guess ${i + 1}: ${Math.round(p.prob * 100)}%`).addTo(map)));
+  if (gps) markers.push(L.marker([gps.lat, gps.lon]).bindTooltip("Exact GPS from metadata").addTo(map));
+  if (markers.length) map.fitBounds(L.featureGroup(markers).getBounds().pad(0.6), { maxZoom: 8 });
+  setTimeout(() => map.invalidateSize(), 50);
+}
+
+async function scrub() {
+  const chosen = [...document.querySelectorAll("#clues input:checked")].map(i => i.dataset.id);
+  const boxes = analysis.clues.filter(c => chosen.includes(c.id)).map(c => c.box);
+  $("scrubBtn").disabled = true;
+  $("status").textContent = "Scrubbing and re-checking…";
+  const fd = new FormData(); fd.append("file", currentFile); fd.append("boxes", JSON.stringify(boxes));
+  try {
+    const res = await fetch("/api/scrub", { method: "POST", body: fd });
+    if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
+    const out = await res.json();
+    const url = "data:image/jpeg;base64," + out.image_b64;
+    $("beforeImg").src = $("photo").src;
+    $("afterImg").src = url;
+    $("download").href = url;
+    $("beforeRisk").innerHTML = `Before: <b class="${out.before.level}">${out.before.score} (${out.before.level})</b>`;
+    $("afterRisk").innerHTML = `After: <b class="${out.after.risk.level}">${out.after.risk.score} (${out.after.risk.level})</b>`;
+    $("afterGeo").textContent = "Models now say: " + out.after.geolocation.summary;
+    $("afterPanel").hidden = false;
+    $("afterPanel").scrollIntoView({ behavior: "smooth" });
+    $("status").textContent = "";
+  } catch (err) {
+    $("status").textContent = "";
+    $("error").textContent = "Scrub failed: " + err.message;
+  } finally {
+    $("scrubBtn").disabled = false;
+  }
+}
+</script>
+</body>
+</html>

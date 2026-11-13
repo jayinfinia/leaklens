@@ -28,6 +28,17 @@ class SceneClue(BaseModel):
     weight: float
 
 
+class TextMatch(BaseModel):
+    """A real place found by searching a sign's text (opt-in lookup)."""
+    clue_id: str
+    text: str
+    query: str
+    name: str
+    lat: float
+    lon: float
+    kind: str = ""
+
+
 class GuessLabel(BaseModel):
     name: str
     prob: float
@@ -56,7 +67,7 @@ class ExifReport(BaseModel):
 
 class RiskFactor(BaseModel):
     source: str
-    points: float
+    points: float  # leak strength of this factor alone, 0-100
     reason: str
 
 
@@ -73,6 +84,8 @@ class Analysis(BaseModel):
     clues: list[Clue]
     scene: list[SceneClue] = Field(default_factory=list)
     geolocation: Geolocation
+    text_matches: list[TextMatch] = Field(default_factory=list)
+    lookup_used: bool = False
     risk: Risk
     # JPEG preview for formats browsers can't show (e.g. HEIC from iPhones).
     preview_b64: Optional[str] = None

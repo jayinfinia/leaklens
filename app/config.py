@@ -21,8 +21,10 @@ OWL_MODEL = os.getenv("LEAKLENS_OWL_MODEL", "google/owlv2-base-patch16-ensemble"
 STREETCLIP_MODEL = os.getenv("LEAKLENS_STREETCLIP_MODEL", "geolocal/StreetCLIP")
 USE_GEOCLIP = os.getenv("LEAKLENS_USE_GEOCLIP", "1") == "1"
 
-DETECT_THRESHOLD = float(os.getenv("LEAKLENS_DETECT_THRESHOLD", "0.2"))
+DETECT_THRESHOLD = float(os.getenv("LEAKLENS_DETECT_THRESHOLD", "0.3"))
+MAX_OBJECT_CLUES = int(os.getenv("LEAKLENS_MAX_OBJECT_CLUES", "12"))
 OCR_LANGS = ["en"]
+OCR_MAX_SIDE = int(os.getenv("LEAKLENS_OCR_MAX_SIDE", "2048"))
 OCR_MIN_CONF = float(os.getenv("LEAKLENS_OCR_MIN_CONF", "0.4"))
 
 # ---------------------------------------------------------------- clues
@@ -102,9 +104,11 @@ SCENE_MIN_PROB = float(os.getenv("LEAKLENS_SCENE_MIN_PROB", "0.15"))
 ATTRIBUTION = os.getenv("LEAKLENS_ATTRIBUTION", "1") == "1"
 ATTRIBUTION_MAX_CLUES = int(os.getenv("LEAKLENS_ATTRIBUTION_MAX", "8"))
 
-# Readable text found by OCR.
-TEXT_CLUE_WEIGHT = 2.5
-TEXT_CLUE_REASON = "Readable text (names, addresses, phone numbers) can be searched."
+# Optional: search detected sign text on OpenStreetMap (Nominatim).
+# Off by default because it sends the text off this machine.
+TEXT_LOOKUP = os.getenv("LEAKLENS_TEXT_LOOKUP", "0") == "1"
+LOOKUP_MAX_QUERIES = int(os.getenv("LEAKLENS_LOOKUP_MAX", "4"))
+NOMINATIM_URL = os.getenv("LEAKLENS_NOMINATIM_URL", "https://nominatim.openstreetmap.org/search")
 
 # Risk level cutoffs on the 0-100 score.
 RISK_MEDIUM = 30

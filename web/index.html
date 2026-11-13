@@ -56,6 +56,10 @@
   .muted { color: var(--muted); }
   #error { color: var(--high); }
   .note { border-left: 3px solid var(--accent); padding-left: 10px; }
+  .toggle { display: flex; gap: 8px; align-items: flex-start; margin-top: 12px; color: var(--muted); font-size: 13px; }
+  .toggle input { margin-top: 3px; }
+  .match { border-left: 3px solid var(--accent); padding: 4px 0 4px 10px; margin-top: 8px; }
+  .match small { color: var(--muted); display: block; }
 </style>
 </head>
 <body>
@@ -70,6 +74,9 @@
     <div class="panel">
       <div id="drop">Drop a photo here, or click to choose one<br><small>JPEG, PNG, WebP or iPhone HEIC. Analyzed locally; nothing is stored.</small></div>
       <input id="file" type="file" accept="image/*,.heic,.heif" hidden>
+      <label class="toggle"><input type="checkbox" id="lookup">
+        <span>Also search sign text on OpenStreetMap, like an investigator would.
+        <br><small>Sends detected text (not the photo) to OpenStreetMap.</small></span></label>
       <div class="stage" id="stage"><img id="photo" alt="Uploaded photo"></div>
       <p id="status" class="muted"></p>
       <p id="error"></p>
@@ -102,6 +109,7 @@
     <div class="panel">
       <h2>Where models think this is</h2>
       <div id="geoSummary"></div>
+      <div id="matches"></div>
       <div id="map"></div>
     </div>
 
@@ -124,6 +132,7 @@
 
     <div class="panel">
       <h2>Why this score</h2>
+      <p class="muted" style="margin:0 0 6px"><small>Each signal's strength on its own. They combine like independent chances, so they don't simply add up.</small></p>
       <div id="factors"></div>
     </div>
   </section>
@@ -131,10 +140,16 @@
 
 <script>
 const $ = (id) => document.getElementById(id);
-const SCALE = 8;  // matches app/pipeline/risk.py
 let currentFile = null, analysis = null, map = null, markers = [];
 
-fetch("/api/health").then(r => r.json()).then(h => { $("mockBadge").hidden = !h.mock; }).catch(() => {});
+fetch("/api/health").then(r => r.json()).then(h => {
+  $("mockBadge").hidden = !h.mock;
+  let saved = null;
+  try { saved = localStorage.getItem("leaklens.lookup"); } catch (_) {}
+  $("lookup").checked = saved === null ? !!h.lookup_default : saved === "1";
+}).catch(() => {});
+$("lookup").onchange = (e) => { try { localStorage.setItem("leaklens.lookup", e.target.checked ? "1" : "0"); } catch (_) {} };
+const withLookup = (url) => `${url}?lookup=${$("lookup").checked}`;
 
 $("drop").onclick = () => $("file").click();
 $("file").onchange = (e) => e.target.files[0] && start(e.target.files[0]);
@@ -172,7 +187,7 @@ async function start(file) {
   busy(true, "Analyzing… (the first run loads the models)");
   const fd = new FormData(); fd.append("file", file);
   try {
-    analysis = await post("/api/analyze", fd);
+    analysis = await post(withLookup("/api/analyze"), fd);
     if (analysis.preview_b64) $("photo").src = "data:image/jpeg;base64," + analysis.preview_b64;
     render(analysis);
     busy(false);
@@ -196,9 +211,14 @@ function render(a) {
   clues.forEach(c => {
     const li = document.createElement("li");
     li.className = "clue";
-    const bar = c.impact == null ? "" :
-      `<div class="impact"><div style="width:${Math.round(c.impact / maxImpact * 100)}%"></div></div>
-       <small>Hiding it alone: −${(c.impact * 100).toFixed(0)} pts confidence</small>`;
+    let bar = "";
+    if (c.impact != null) {
+      const pts = Math.round(c.impact * 100);
+      const msg = pts >= 1 ? `Hiding it alone: −${pts} pts model confidence`
+        : c.kind === "text" ? "The vision model doesn't read it, but a person can search it."
+        : "The vision model barely relies on it.";
+      bar = `<div class="impact"><div style="width:${Math.round(c.impact / maxImpact * 100)}%"></div></div><small>${msg}</small>`;
+    }
     li.innerHTML = `<input type="checkbox" checked data-id="${c.id}">
       <div><b>${clueName(c)}</b>${c.id === topId ? '<span class="tag">gave it away</span>' : ""}
       <span class="muted">${Math.round(c.score * 100)}%</span><small>${esc(c.reason)}</small>${bar}</div>`;
@@ -221,10 +241,13 @@ function render(a) {
   const g = a.geolocation;
   const alts = (g.region.length ? g.region : g.country).slice(1, 4).map(x => `${esc(x.name)} ${Math.round(x.prob * 100)}%`).join(" · ");
   $("geoSummary").innerHTML = `<b>${esc(g.summary)}</b>${alts ? `<br><small class="muted">Also: ${alts}</small>` : ""}`;
-  drawMap(g.points, ex.gps);
+  $("matches").innerHTML = a.text_matches.map(m =>
+    `<div class="match"><b>Sign text “${esc(m.text)}” found on the map</b><small>${esc(m.name)}</small><small>searched: ${esc(m.query)}</small></div>`).join("")
+    || (a.lookup_used ? "<p class='muted'><small>No sign text matched a place on OpenStreetMap.</small></p>" : "");
+  drawMap(g.points, ex.gps, a.text_matches);
 
   $("factors").innerHTML = a.risk.factors.map(f =>
-    `<div class="factor"><div>${esc(f.reason)}<small>${esc(f.source)}</small></div><b>+${Math.round(f.points * SCALE)}</b></div>`).join("");
+    `<div class="factor"><div>${esc(f.reason)}<small>${esc(f.source)}</small></div><b>${Math.round(f.points)}%</b></div>`).join("");
 }
 
 function setRisk(r) {
@@ -260,11 +283,11 @@ function drawBoxes(a, topId) {
   });
 }
 
-function drawMap(points, gps) {
+function drawMap(points, gps, matches = []) {
   if (typeof L === "undefined") {  // map tiles need internet; keep the rest working offline
     $("map").style.height = "auto";
     $("map").innerHTML = "<p class='muted' style='padding:8px'>Map unavailable (offline). Coordinates: " +
-      (points.map(p => `${p.lat}, ${p.lon}`).slice(0, 3).join(" · ") || "none") + "</p>";
+      (points.concat(matches).map(p => `${p.lat}, ${p.lon}`).slice(0, 4).join(" · ") || "none") + "</p>";
     return;
   }
   if (!map) {
@@ -275,6 +298,9 @@ function drawMap(points, gps) {
   points.forEach((p, i) => markers.push(
     L.circleMarker([p.lat, p.lon], { radius: i ? 6 : 10, color: "#f85149", fillOpacity: i ? .3 : .7 })
       .bindTooltip(`Guess ${i + 1}: ${Math.round(p.prob * 100)}%`).addTo(map)));
+  matches.forEach(m => markers.push(
+    L.circleMarker([m.lat, m.lon], { radius: 9, color: "#58a6ff", fillOpacity: .8 })
+      .bindTooltip(`Sign text “${m.text}”: ${m.name}`).addTo(map)));
   if (gps) markers.push(L.marker([gps.lat, gps.lon]).bindTooltip("Exact GPS from metadata").addTo(map));
   if (markers.length) map.fitBounds(L.featureGroup(markers).getBounds().pad(0.6), { maxZoom: 8 });
   setTimeout(() => map.invalidateSize(), 50);
@@ -289,7 +315,7 @@ async function clean(url, useSelection) {
   }
   busy(true, useSelection ? "Scrubbing and re-checking…" : "Finding the fewest clues to hide…");
   try {
-    const out = await post(url, fd);
+    const out = await post(withLookup(url), fd);
     if (!useSelection) {  // reflect what auto-safe chose
       analysis.clues.forEach(c => toggleBox(c.id, out.blurred.includes(c.id)));
     }

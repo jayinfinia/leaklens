@@ -138,7 +138,7 @@ def fetch(per_city: int) -> None:
 
 
 # ------------------------------------------------------------ run
-def run(keep_exif: bool, limit: int | None) -> Path:
+def run(keep_exif: bool, limit: int | None, lookup: bool = False) -> Path:
     from app import config
     from app.pipeline import analyze, load_image
     from app.pipeline.exif import strip_metadata
@@ -170,14 +170,14 @@ def run(keep_exif: bool, limit: int | None) -> Path:
         truth_lon = item["photo_lon"] if item.get("photo_lon") is not None else item["lon"]
 
         t0 = time.perf_counter()
-        a = analyze(raw, upright, explain=True)
+        a = analyze(raw, upright, explain=True, lookup=lookup)
         t_analyze = time.perf_counter() - t0
 
         t0 = time.perf_counter()
         ids, note = plan(upright, a)
         boxes = [c.box for c in a.clues if c.id in ids]
         clean = blur_regions(upright, boxes)
-        after = analyze(clean, clean, explain=False)
+        after = analyze(clean, clean, explain=False, lookup=lookup)
         t_safe = time.perf_counter() - t0
 
         g = a.geolocation
@@ -185,6 +185,8 @@ def run(keep_exif: bool, limit: int | None) -> Path:
         pin = g.points[0] if g.points else None
         km = haversine_km(pin.lat, pin.lon, truth_lat, truth_lon) if pin else None
         top_clue = max(a.clues, key=lambda c: c.impact or 0, default=None)
+        match = a.text_matches[0] if a.text_matches else None
+        match_km = haversine_km(match.lat, match.lon, truth_lat, truth_lon) if match else None
 
         row = {
             "file": item["file"], "city": item["city"], "state": item["state"],
@@ -203,6 +205,8 @@ def run(keep_exif: bool, limit: int | None) -> Path:
             "top_clue": (f"{top_clue.category}:{top_clue.label}"[:60] if top_clue else ""),
             "top_clue_impact": (top_clue.impact if top_clue else ""),
             "scene": " ".join(s.category for s in a.scene),
+            "lookup_match": (f"{match.text} -> {match.name}"[:120] if match else ""),
+            "lookup_error_km": round(match_km, 1) if match_km is not None else "",
             "risk_before": a.risk.score, "level_before": a.risk.level,
             "blurred": len(ids), "risk_after": after.risk.score, "level_after": after.risk.level,
             "after_summary": after.geolocation.summary,
@@ -219,7 +223,7 @@ def run(keep_exif: bool, limit: int | None) -> Path:
         w = csv.DictWriter(f, fieldnames=list(rows[0]))
         w.writeheader()
         w.writerows(rows)
-    (out_dir / "summary.md").write_text(summarize(rows, keep_exif, config.MOCK_MODE))
+    (out_dir / "summary.md").write_text(summarize(rows, keep_exif, config.MOCK_MODE, lookup))
     print(f"\nLogged to {out_dir}")
     return out_dir
 
@@ -229,7 +233,7 @@ def _pct(xs) -> str:
     return f"{100 * sum(xs) / len(xs):.0f}%" if xs else "n/a"
 
 
-def summarize(rows: list[dict], keep_exif: bool, mock: bool) -> str:
+def summarize(rows: list[dict], keep_exif: bool, mock: bool, lookup: bool = False) -> str:
     kms = [r["pin_error_km"] for r in rows if r["pin_error_km"] != ""]
     drop = [r["risk_before"] - r["risk_after"] for r in rows]
     lines = [
@@ -238,6 +242,7 @@ def summarize(rows: list[dict], keep_exif: bool, mock: bool) -> str:
         f"- Photos: {len(rows)} from {len({r['city'] for r in rows})} US cities",
         f"- EXIF: {'kept' if keep_exif else 'stripped before analysis (pixels only)'}",
         f"- Mode: {'MOCK (canned results, not real accuracy)' if mock else 'real models'}",
+        f"- Sign-text lookup (OpenStreetMap): {'on' if lookup else 'off'}",
         "",
         "## Where the models placed the photos",
         "",
@@ -253,6 +258,12 @@ def summarize(rows: list[dict], keep_exif: bool, mock: bool) -> str:
             f"| Pin within 25 km (city) | {_pct(k <= 25 for k in kms)} |",
             f"| Pin within 200 km (region) | {_pct(k <= 200 for k in kms)} |",
             f"| Pin within 750 km | {_pct(k <= 750 for k in kms)} |",
+        ]
+    lkm = [r["lookup_error_km"] for r in rows if r.get("lookup_error_km", "") != ""]
+    if lookup:
+        lines += [
+            f"| Sign text matched a place | {_pct(r.get('lookup_match') != '' for r in rows)} |",
+            f"| ...and that match is within 25 km | {sum(k <= 25 for k in lkm)} of {len(rows)} photos |",
         ]
     lines += [
         "",
@@ -291,11 +302,12 @@ def main() -> None:
     r = sub.add_parser("run", help="analyze every photo and log results")
     r.add_argument("--keep-exif", action="store_true")
     r.add_argument("--limit", type=int)
+    r.add_argument("--lookup", action="store_true", help="also search sign text on OpenStreetMap")
     args = ap.parse_args()
     if args.cmd == "fetch":
         fetch(args.per_city)
     else:
-        run(args.keep_exif, args.limit)
+        run(args.keep_exif, args.limit, args.lookup)
 
 
 if __name__ == "__main__":

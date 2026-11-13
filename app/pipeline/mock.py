@@ -9,7 +9,8 @@ analyze -> scrub -> re-check flow meaningful without any models.
 from PIL import ImageStat
 
 from .. import config
-from ..schemas import Clue, Geolocation, GuessLabel, GuessPoint, SceneClue
+from ..schemas import Clue, Geolocation, GuessLabel, GuessPoint, SceneClue, TextMatch
+from .text_intel import classify
 
 REGION = (0.08, 0.12, 0.34, 0.26)  # x0, y0, x1, y1 as fractions
 DETAIL_THRESHOLD = 12.0
@@ -39,10 +40,11 @@ def text(image) -> list[Clue]:
     if not has_detail(image):
         return []
     x0, y0, x1, y1 = region_box(image)
+    intel = classify("MAIN ST")
     return [Clue(
-        id="txt-0", kind="text", category="text", label="MAIN ST",
+        id="txt-0", kind="text", category=f"text:{intel.kind}", label="MAIN ST",
         score=0.88, box=[x0 + (x1 - x0) * 0.1, y0 + (y1 - y0) * 0.25, x1 - (x1 - x0) * 0.1, y1 - (y1 - y0) * 0.3],
-        reason=config.TEXT_CLUE_REASON, weight=config.TEXT_CLUE_WEIGHT,
+        reason=intel.reason, weight=intel.weight,
     )]
 
 

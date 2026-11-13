@@ -70,10 +70,13 @@ def test_explain_off_skips_attribution(photo_no_gps):
     assert all(c.impact is None for c in analyze(raw, upright, explain=False).clues)
 
 
-def test_risk_factors_add_up(photo_no_gps):
+def test_risk_factors_combine_as_noisy_or(photo_no_gps):
+    import math
+
     raw, upright = load_image(photo_no_gps)
     r = analyze(raw, upright).risk
-    assert r.score == min(100, round(sum(f.points for f in r.factors) * 8))
+    expected = 100 * (1 - math.prod(1 - f.points / 100 for f in r.factors))
+    assert abs(r.score - expected) <= 1
     assert r.factors == sorted(r.factors, key=lambda f: f.points, reverse=True)
 
 
@@ -132,3 +135,15 @@ def test_heic_gets_a_browser_preview():
         pytest.skip(f"HEIF encoding unavailable: {exc}")
     body = post("/api/analyze", buf.getvalue(), name="IMG_0001.HEIC", mime="image/heic").json()
     assert body["preview_b64"]
+
+
+def test_api_lookup_toggle(photo_no_gps):
+    off = post("/api/analyze?lookup=false", photo_no_gps).json()
+    on = post("/api/analyze?lookup=true", photo_no_gps).json()
+    assert off["text_matches"] == [] and off["lookup_used"] is False
+    assert on["text_matches"] and on["lookup_used"] is True
+    assert on["risk"]["score"] >= off["risk"]["score"]
+
+    safe = post("/api/safe?lookup=true", photo_no_gps).json()
+    assert on["text_matches"][0]["clue_id"] in safe["blurred"]
+    assert safe["after"]["text_matches"] == []

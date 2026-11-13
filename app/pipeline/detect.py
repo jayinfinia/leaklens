@@ -15,13 +15,27 @@ def _iou(a, b) -> float:
     return inter / (area(a) + area(b) - inter)
 
 
-def _nms(clues: list[Clue], iou_thresh: float = 0.5) -> list[Clue]:
-    """Keep the strongest box when several prompts hit the same spot."""
+def _containment(inner, outer) -> float:
+    """Share of `inner` that lies inside `outer`."""
+    x0, y0 = max(inner[0], outer[0]), max(inner[1], outer[1])
+    x1, y1 = min(inner[2], outer[2]), min(inner[3], outer[3])
+    inter = max(0.0, x1 - x0) * max(0.0, y1 - y0)
+    area = (inner[2] - inner[0]) * (inner[3] - inner[1])
+    return inter / area if area > 0 else 0.0
+
+
+def _nms(clues: list[Clue], iou_thresh: float = 0.5, contain_thresh: float = 0.85) -> list[Clue]:
+    """Keep the strongest box when several prompts hit the same spot.
+
+    Also drops a weaker box that sits almost entirely inside a stronger one
+    (a sign inside a storefront), across every category.
+    """
     kept: list[Clue] = []
     for c in sorted(clues, key=lambda c: c.score, reverse=True):
-        if all(_iou(c.box, k.box) < iou_thresh for k in kept):
+        if all(_iou(c.box, k.box) < iou_thresh and _containment(c.box, k.box) < contain_thresh
+               for k in kept):
             kept.append(c)
-    return kept
+    return kept[: config.MAX_OBJECT_CLUES]
 
 
 def detect_clues(image) -> list[Clue]:

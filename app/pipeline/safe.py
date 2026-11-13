@@ -14,7 +14,10 @@ from .scrub import blur_regions
 
 
 def plan(upright, analysis: Analysis) -> tuple[list[str], str]:
-    clues = sorted(analysis.clues, key=lambda c: ((c.impact or 0), c.weight * c.score), reverse=True)
+    matched = {m.clue_id for m in analysis.text_matches}
+    # Text that matched a real place goes first, then what the model leans on most.
+    clues = sorted(analysis.clues,
+                   key=lambda c: (c.id in matched, c.impact or 0, c.weight * c.score), reverse=True)
     if not clues:
         return [], "No visual clues to blur; metadata will still be stripped."
 
@@ -24,8 +27,10 @@ def plan(upright, analysis: Analysis) -> tuple[list[str], str]:
 
     no_exif = ExifReport()
     for step, geo in zip(steps, geos):
-        remaining = [c for c in analysis.clues if c not in step]
-        if score(no_exif, remaining, geo, analysis.scene).level == "low":
+        hidden = {c.id for c in step}
+        remaining = [c for c in analysis.clues if c.id not in hidden]
+        matches = [m for m in analysis.text_matches if m.clue_id not in hidden]
+        if score(no_exif, remaining, geo, analysis.scene, matches).level == "low":
             return [c.id for c in step], f"Blurred {len(step)} of {len(clues)} clues to reach low risk."
 
     note = "Blurred every clue, but the scene itself still points to a region."

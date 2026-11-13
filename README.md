@@ -11,8 +11,12 @@ Stripping EXIF data isn't enough. A street sign in the background, a storefront,
 | 1. Metadata | Reads GPS, timestamp and device info from the file, then strips all of it | Pillow |
 | 2. Visual clues | Draws boxes around location-revealing objects (street signs, house numbers, plates, storefronts, landmarks, transit signs) | OWLv2 (open-vocabulary detection) |
 | 2. Text | Finds readable names, addresses and numbers | EasyOCR |
+| 2. Scene | Flags whole-image signals with no single spot to blur (skyline, mountains, road markings, plants, architecture) | StreetCLIP |
 | 3. Geolocation | Guesses country, then US state, and drops pins on a map | StreetCLIP + GeoCLIP |
-| 4. Risk + fix | Explainable 0-100 score; blurs the selected clues and re-runs everything to show the drop | |
+| 4. Attribution | Blurs each clue on its own and measures how much the top guess weakens, so you see which clue gave it away | StreetCLIP (batched) |
+| 5. Risk + fix | Explainable 0-100 score. **Make it safe** blurs the fewest clues needed to reach low risk; or pick clues yourself. Everything is re-checked after | |
+
+iPhone HEIC photos work too (converted for preview automatically), and the UI still works offline; only the map tiles need internet.
 
 Everything runs locally. Photos never leave the machine and nothing is stored.
 
@@ -31,12 +35,21 @@ LEAKLENS_MOCK=1 uvicorn app.main:app --reload
 
 Open http://localhost:8000.
 
-Tests (always run in mock mode):
+Docker:
+
+```bash
+docker build -t leaklens .
+docker run -p 8000:8000 -v leaklens-models:/models leaklens
+```
+
+Tests:
 
 ```bash
 pip install -r requirements-dev.txt
 pytest -q
 ```
+
+The suite runs in mock mode, so CI never downloads weights. If torch and transformers are installed, `tests/test_models_offline.py` also runs the real (non-mock) code paths against tiny, randomly initialized OWLv2 and CLIP models. That checks shapes, batching, box coordinates and library compatibility (tested on transformers 4.46 and 5.x) without downloading anything.
 
 ## Configuration
 
@@ -49,13 +62,17 @@ All settings live in `app/config.py` and can be overridden with environment vari
 | `LEAKLENS_DETECT_THRESHOLD` | `0.2` | OWLv2 confidence cutoff |
 | `LEAKLENS_USE_GEOCLIP` | `1` | Turn off map pins if GeoCLIP is slow |
 | `LEAKLENS_MAX_SIDE` | `1280` | Longest side used for analysis |
+| `LEAKLENS_ATTRIBUTION` | `1` | Per-clue "which clue gave it away" test |
+| `LEAKLENS_ATTRIBUTION_MAX` | `8` | Max clues to attribute (one extra image pass each) |
+| `LEAKLENS_SCENE_MIN_PROB` | `0.15` | Cutoff for reporting scene signals |
 
-The clue categories, prompts, weights and explanations are a single dict (`CLUE_CATEGORIES`), so tuning detection means editing text rather than code.
+Clue categories and scene cues (prompts, weights and explanations) are plain dicts (`CLUE_CATEGORIES`, `SCENE_CUES`), so tuning detection means editing text rather than code.
 
 ## API
 
-- `POST /api/analyze`: multipart `file` → metadata, clues with boxes, geolocation guesses, risk score with every contributing factor
-- `POST /api/scrub`: multipart `file` + `boxes` (JSON list of `[x0, y0, x1, y1]`) → clean JPEG (base64), risk before, and a full analysis of the cleaned image
+- `POST /api/analyze?explain=true`: multipart `file` → metadata, clues with boxes and impact, scene signals, geolocation guesses, risk score with every contributing factor
+- `POST /api/safe`: multipart `file` → blurs the fewest clues needed to reach low risk; returns the clean JPEG (base64), which clues were blurred, risk before, a full analysis after, and a note
+- `POST /api/scrub`: multipart `file` + `boxes` (JSON list of `[x0, y0, x1, y1]`) → same response, for clues the user picked
 - `GET /api/health`
 
 ## Project layout
@@ -70,17 +87,23 @@ app/
     exif.py          layer 1: read and strip metadata
     detect.py        layer 2: OWLv2 clue boxes
     ocr.py           layer 2: readable text
-    geolocate.py     layer 3: StreetCLIP labels, GeoCLIP pins
-    risk.py          layer 4: explainable score
-    scrub.py         layer 4: pixelate + blur, strip metadata
+    scene.py         layer 2: scene signals with no box
+    geolocate.py     layer 3: StreetCLIP labels (cached text, batched images), GeoCLIP pins
+    attribution.py   layer 4: which clue gave it away
+    risk.py          layer 5: explainable score
+    safe.py          layer 5: fewest blurs to reach low risk
+    scrub.py         layer 5: pixelate + blur, strip metadata
+    mock.py          canned, blur-aware results for LEAKLENS_MOCK=1
 web/index.html       single-file frontend (Leaflet map)
-tests/               mock-mode tests
+tests/               mock-mode API tests + offline real-architecture tests
+scripts/check.py     run the pipeline on one photo from the terminal
 ```
 
 ## Limitations
 
 - Geolocation models are biased toward well-photographed, mostly Western places. A low score is not a guarantee of safety.
-- The detector finds what its prompts describe. Architecture, vegetation, road markings and sun angle still leak location and aren't boxed yet.
+- The detector finds what its prompts describe. Scene signals (architecture, vegetation, road markings) are flagged but can't be blurred away; cropping is the fix. Sun angle and shadows aren't checked.
+- Attribution measures what *these* models lean on. A human analyst or a stronger model may use different clues.
 - Blurring removes the clue, not the scene. A determined analyst may still place a photo from what's left.
 
 ## Intended use

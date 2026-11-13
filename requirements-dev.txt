@@ -1,6 +1,8 @@
+# Mock-mode tests only: no torch, no model downloads.
 fastapi>=0.110
 python-multipart>=0.0.9
 pillow>=10.0
+pillow-heif>=0.16
 numpy>=1.26
 pytest>=8.0
 httpx>=0.27

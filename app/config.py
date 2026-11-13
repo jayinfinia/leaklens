@@ -71,6 +71,37 @@ CLUE_CATEGORIES = {
     },
 }
 
+# Scene-level signals: no single box to blur, but they still narrow the
+# location. Scored with StreetCLIP against neutral "nothing here" prompts.
+SCENE_CUES = {
+    "skyline": {"prompt": "a city skyline in the background", "weight": 1.5,
+                "reason": "Skylines are distinctive and easy to match."},
+    "mountains": {"prompt": "mountains on the horizon", "weight": 1.0,
+                  "reason": "Ridgelines can be matched against terrain maps."},
+    "coastline": {"prompt": "a coastline or beach", "weight": 1.0,
+                  "reason": "Coastline shapes and beaches narrow the region."},
+    "road_markings": {"prompt": "a road with painted lane markings", "weight": 1.0,
+                      "reason": "Lane line colors and styles differ by country."},
+    "power_lines": {"prompt": "utility poles and power lines", "weight": 0.8,
+                    "reason": "Utility pole designs vary by region."},
+    "vegetation": {"prompt": "palm trees or tropical plants", "weight": 0.8,
+                   "reason": "Plants narrow down the climate zone."},
+    "architecture": {"prompt": "houses with a distinctive regional architectural style", "weight": 1.0,
+                     "reason": "Building styles are strongly regional."},
+    "snow": {"prompt": "snow on the ground", "weight": 0.5,
+             "reason": "Weather narrows the region and the date."},
+}
+NEUTRAL_SCENES = [
+    "a close-up photo of an object", "a photo of a person indoors",
+    "a plain wall", "a photo of food on a table",
+]
+SCENE_MIN_PROB = float(os.getenv("LEAKLENS_SCENE_MIN_PROB", "0.15"))
+
+# Attribution: blur each clue alone and measure how much the top location
+# guess weakens. Costs one extra image embedding per clue.
+ATTRIBUTION = os.getenv("LEAKLENS_ATTRIBUTION", "1") == "1"
+ATTRIBUTION_MAX_CLUES = int(os.getenv("LEAKLENS_ATTRIBUTION_MAX", "8"))
+
 # Readable text found by OCR.
 TEXT_CLUE_WEIGHT = 2.5
 TEXT_CLUE_REASON = "Readable text (names, addresses, phone numbers) can be searched."

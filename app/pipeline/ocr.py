@@ -4,13 +4,14 @@ import re
 
 from .. import config
 from ..schemas import Clue
+from . import mock
 
 _MEANINGFUL = re.compile(r"[A-Za-z0-9]{3,}")
 
 
 def find_text(image) -> list[Clue]:
     if config.MOCK_MODE:
-        return _mock(image)
+        return mock.text(image)
 
     import numpy as np
 
@@ -31,11 +32,3 @@ def find_text(image) -> list[Clue]:
         ))
     return clues
 
-
-def _mock(image) -> list[Clue]:
-    w, h = image.size
-    return [Clue(
-        id="txt-0", kind="text", category="text", label="MAIN ST",
-        score=0.88, box=[w * 0.1, h * 0.15, w * 0.3, h * 0.21],
-        reason=config.TEXT_CLUE_REASON, weight=config.TEXT_CLUE_WEIGHT,
-    )]

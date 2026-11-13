@@ -13,7 +13,7 @@
   }
   * { box-sizing: border-box; }
   body { margin: 0; font: 15px/1.5 system-ui, -apple-system, Segoe UI, sans-serif; background: var(--bg); color: var(--text); }
-  header { padding: 20px 28px; border-bottom: 1px solid var(--line); display: flex; align-items: baseline; gap: 14px; }
+  header { padding: 20px 28px; border-bottom: 1px solid var(--line); display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
   header h1 { margin: 0; font-size: 22px; letter-spacing: .3px; }
   header p { margin: 0; color: var(--muted); }
   .badge { font-size: 12px; padding: 2px 8px; border: 1px solid var(--medium); color: var(--medium); border-radius: 99px; }
@@ -25,8 +25,9 @@
   #drop.over { border-color: var(--accent); color: var(--text); }
   .stage { position: relative; display: none; }
   .stage img { width: 100%; display: block; border-radius: 6px; }
-  .box { position: absolute; border: 2px solid var(--high); border-radius: 3px; background: rgba(248,81,73,.12); }
+  .box { position: absolute; border: 2px solid var(--high); border-radius: 3px; background: rgba(248,81,73,.12); cursor: pointer; }
   .box.off { border-style: dashed; opacity: .35; }
+  .box.top { border-width: 3px; box-shadow: 0 0 0 3px rgba(248,81,73,.35); }
   .box span { position: absolute; top: -20px; left: -2px; font-size: 11px; background: var(--high); color: #fff; padding: 1px 5px; border-radius: 3px; white-space: nowrap; }
   .risk { display: flex; align-items: center; gap: 14px; }
   .score { font-size: 44px; font-weight: 700; line-height: 1; }
@@ -37,11 +38,16 @@
   .bg-low { background: var(--low); } .bg-medium { background: var(--medium); } .bg-high { background: var(--high); }
   ul { list-style: none; margin: 0; padding: 0; }
   li.clue { display: flex; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
+  li.clue > div { flex: 1; min-width: 0; }
   li.clue small, .factor small { color: var(--muted); display: block; }
+  .impact { height: 5px; background: var(--line); border-radius: 99px; margin-top: 5px; overflow: hidden; }
+  .impact div { height: 100%; background: var(--high); }
+  .tag { font-size: 11px; background: var(--high); color: #fff; border-radius: 3px; padding: 0 5px; margin-left: 4px; }
   .factor { padding: 6px 0; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 10px; }
+  .scene { padding: 6px 0; border-top: 1px solid var(--line); }
   #map { height: 220px; border-radius: 6px; margin-top: 10px; }
   .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
-  button, a.btn { background: var(--accent); color: #04121f; border: 0; border-radius: 6px; padding: 9px 16px; font-weight: 600; cursor: pointer; text-decoration: none; }
+  button, a.btn { background: var(--accent); color: #04121f; border: 0; border-radius: 6px; padding: 9px 16px; font-weight: 600; cursor: pointer; text-decoration: none; font-size: 14px; }
   button.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
   button:disabled { opacity: .5; cursor: wait; }
   .stack > * + * { margin-top: 16px; }
@@ -49,6 +55,7 @@
   .compare img { width: 100%; border-radius: 6px; }
   .muted { color: var(--muted); }
   #error { color: var(--high); }
+  .note { border-left: 3px solid var(--accent); padding-left: 10px; }
 </style>
 </head>
 <body>
@@ -61,13 +68,14 @@
 <main>
   <section class="stack">
     <div class="panel">
-      <div id="drop">Drop a photo here, or click to choose one<br><small>Analyzed locally. Nothing is stored.</small></div>
-      <input id="file" type="file" accept="image/*" hidden>
+      <div id="drop">Drop a photo here, or click to choose one<br><small>JPEG, PNG, WebP or iPhone HEIC. Analyzed locally; nothing is stored.</small></div>
+      <input id="file" type="file" accept="image/*,.heic,.heif" hidden>
       <div class="stage" id="stage"><img id="photo" alt="Uploaded photo"></div>
       <p id="status" class="muted"></p>
       <p id="error"></p>
       <div class="row" id="actions" hidden>
-        <button id="scrubBtn">Scrub selected clues</button>
+        <button id="safeBtn" title="Blur the fewest clues needed to reach low risk">Make it safe</button>
+        <button id="scrubBtn" class="ghost">Scrub selected clues</button>
         <button id="resetBtn" class="ghost">New photo</button>
       </div>
     </div>
@@ -78,6 +86,7 @@
         <div><img id="beforeImg" alt="Original"><p id="beforeRisk"></p></div>
         <div><img id="afterImg" alt="Scrubbed"><p id="afterRisk"></p></div>
       </div>
+      <p id="afterNote" class="note" hidden></p>
       <p id="afterGeo" class="muted"></p>
       <div class="row"><a id="download" class="btn" download="leaklens-clean.jpg">Download clean photo</a></div>
     </div>
@@ -98,7 +107,14 @@
 
     <div class="panel">
       <h2>Clues found</h2>
+      <p class="muted" style="margin:0 0 6px"><small>Bars show how much hiding each clue alone weakens the model's top guess. Uncheck to keep a clue.</small></p>
       <ul id="clues"></ul>
+    </div>
+
+    <div class="panel" id="scenePanel" hidden>
+      <h2>Scene signals</h2>
+      <p class="muted" style="margin:0 0 6px"><small>No single spot to blur. Cropping is the fix.</small></p>
+      <div id="scene"></div>
     </div>
 
     <div class="panel">
@@ -115,6 +131,7 @@
 
 <script>
 const $ = (id) => document.getElementById(id);
+const SCALE = 8;  // matches app/pipeline/risk.py
 let currentFile = null, analysis = null, map = null, markers = [];
 
 fetch("/api/health").then(r => r.json()).then(h => { $("mockBadge").hidden = !h.mock; }).catch(() => {});
@@ -125,9 +142,26 @@ $("file").onchange = (e) => e.target.files[0] && start(e.target.files[0]);
 ["dragleave", "drop"].forEach(ev => $("drop").addEventListener(ev, e => { e.preventDefault(); $("drop").classList.remove("over"); }));
 $("drop").addEventListener("drop", e => e.dataTransfer.files[0] && start(e.dataTransfer.files[0]));
 $("resetBtn").onclick = () => location.reload();
-$("scrubBtn").onclick = scrub;
+$("scrubBtn").onclick = () => clean("/api/scrub", true);
+$("safeBtn").onclick = () => clean("/api/safe", false);
 
-function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+function esc(s) { const d = document.createElement("div"); d.textContent = String(s); return d.innerHTML; }
+function pretty(cat) { return cat.replace(/_/g, " "); }
+function clueName(c) { return c.kind === "text" ? `Text: “${esc(c.label)}”` : esc(pretty(c.category)); }
+function busy(on, msg = "") {
+  ["safeBtn", "scrubBtn"].forEach(id => $(id).disabled = on);
+  $("status").textContent = msg;
+}
+
+async function post(url, form) {
+  const res = await fetch(url, { method: "POST", body: form });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try { detail = (await res.json()).detail || detail; } catch (_) {}
+    throw new Error(detail);
+  }
+  return res.json();
+}
 
 async function start(file) {
   currentFile = file;
@@ -135,16 +169,15 @@ async function start(file) {
   $("drop").style.display = "none";
   $("stage").style.display = "block";
   $("photo").src = URL.createObjectURL(file);
-  $("status").textContent = "Analyzing… (first run loads the models)";
+  busy(true, "Analyzing… (the first run loads the models)");
   const fd = new FormData(); fd.append("file", file);
   try {
-    const res = await fetch("/api/analyze", { method: "POST", body: fd });
-    if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
-    analysis = await res.json();
+    analysis = await post("/api/analyze", fd);
+    if (analysis.preview_b64) $("photo").src = "data:image/jpeg;base64," + analysis.preview_b64;
     render(analysis);
-    $("status").textContent = "";
+    busy(false);
   } catch (err) {
-    $("status").textContent = "";
+    busy(false);
     $("error").textContent = "Analysis failed: " + err.message;
   }
 }
@@ -152,63 +185,88 @@ async function start(file) {
 function render(a) {
   $("report").hidden = false;
   $("actions").hidden = false;
-  setRisk(a.risk, "score", "level", "meterFill");
-  drawBoxes(a);
+  setRisk(a.risk);
 
-  // Clues, each with a checkbox (checked = will be blurred)
-  $("clues").innerHTML = a.clues.length ? "" : "<li class='muted'>No visual clues detected.</li>";
-  a.clues.forEach(c => {
+  const clues = [...a.clues].sort((x, y) => (y.impact ?? 0) - (x.impact ?? 0) || y.score - x.score);
+  const maxImpact = Math.max(0.0001, ...clues.map(c => c.impact ?? 0));
+  const topId = clues.length && (clues[0].impact ?? 0) > 0.02 ? clues[0].id : null;
+  drawBoxes(a, topId);
+
+  $("clues").innerHTML = clues.length ? "" : "<li class='muted'>No visual clues detected.</li>";
+  clues.forEach(c => {
     const li = document.createElement("li");
     li.className = "clue";
-    const name = c.kind === "text" ? `Text: “${esc(c.label)}”` : esc(c.category.replace(/_/g, " "));
-    li.innerHTML = `<input type="checkbox" checked data-id="${c.id}"><div><b>${name}</b> <span class="muted">${Math.round(c.score * 100)}%</span><small>${esc(c.reason)}</small></div>`;
-    li.querySelector("input").onchange = (e) => document.querySelector(`.box[data-id="${c.id}"]`)?.classList.toggle("off", !e.target.checked);
+    const bar = c.impact == null ? "" :
+      `<div class="impact"><div style="width:${Math.round(c.impact / maxImpact * 100)}%"></div></div>
+       <small>Hiding it alone: −${(c.impact * 100).toFixed(0)} pts confidence</small>`;
+    li.innerHTML = `<input type="checkbox" checked data-id="${c.id}">
+      <div><b>${clueName(c)}</b>${c.id === topId ? '<span class="tag">gave it away</span>' : ""}
+      <span class="muted">${Math.round(c.score * 100)}%</span><small>${esc(c.reason)}</small>${bar}</div>`;
+    li.querySelector("input").onchange = (e) => toggleBox(c.id, e.target.checked);
     $("clues").appendChild(li);
   });
 
-  // Metadata
+  $("scenePanel").hidden = !a.scene.length;
+  $("scene").innerHTML = a.scene.map(s =>
+    `<div class="scene"><b>${esc(pretty(s.category))}</b> <span class="muted">${Math.round(s.prob * 100)}%</span><small class="muted" style="display:block">${esc(s.reason)}</small></div>`).join("");
+
   const ex = a.exif;
   $("exif").innerHTML = !ex.has_exif ? "<span class='low'>No metadata found.</span>" : [
     ex.gps ? `<div class="high"><b>GPS:</b> ${ex.gps.lat}, ${ex.gps.lon}</div>` : "<div class='low'>No GPS coordinates.</div>",
     ex.taken_at ? `<div><b>Taken:</b> ${esc(ex.taken_at)}</div>` : "",
     ex.device ? `<div><b>Device:</b> ${esc(ex.device)}</div>` : "",
-    "<small class='muted'>Scrubbing removes all metadata.</small>",
+    "<small class='muted'>Cleaning removes all metadata.</small>",
   ].join("");
 
-  // Geolocation + map
   const g = a.geolocation;
   const alts = (g.region.length ? g.region : g.country).slice(1, 4).map(x => `${esc(x.name)} ${Math.round(x.prob * 100)}%`).join(" · ");
   $("geoSummary").innerHTML = `<b>${esc(g.summary)}</b>${alts ? `<br><small class="muted">Also: ${alts}</small>` : ""}`;
   drawMap(g.points, ex.gps);
 
   $("factors").innerHTML = a.risk.factors.map(f =>
-    `<div class="factor"><div>${esc(f.reason)}<small>${esc(f.source)}</small></div><b>+${Math.round(f.points * 8)}</b></div>`).join("");
+    `<div class="factor"><div>${esc(f.reason)}<small>${esc(f.source)}</small></div><b>+${Math.round(f.points * SCALE)}</b></div>`).join("");
 }
 
-function setRisk(r, scoreId, levelId, fillId) {
-  $(scoreId).textContent = r.score;
-  $(scoreId).className = "score " + r.level;
-  $(levelId).textContent = r.level + " risk";
-  $(levelId).className = "level " + r.level;
-  if (fillId) { $(fillId).style.width = r.score + "%"; $(fillId).className = "bg-" + r.level; }
+function setRisk(r) {
+  $("score").textContent = r.score;
+  $("score").className = "score " + r.level;
+  $("level").textContent = r.level + " risk";
+  $("level").className = "level " + r.level;
+  $("meterFill").style.width = r.score + "%";
+  $("meterFill").className = "bg-" + r.level;
 }
 
-function drawBoxes(a) {
+function toggleBox(id, on) {
+  document.querySelector(`.box[data-id="${id}"]`)?.classList.toggle("off", !on);
+  const cb = document.querySelector(`#clues input[data-id="${id}"]`);
+  if (cb) cb.checked = on;
+}
+
+function drawBoxes(a, topId) {
   document.querySelectorAll(".box").forEach(b => b.remove());
   a.clues.forEach(c => {
     const [x0, y0, x1, y1] = c.box;
     const d = document.createElement("div");
-    d.className = "box"; d.dataset.id = c.id;
+    d.className = "box" + (c.id === topId ? " top" : "");
+    d.dataset.id = c.id;
+    d.title = "Click to keep or blur this clue";
     Object.assign(d.style, {
       left: (x0 / a.width * 100) + "%", top: (y0 / a.height * 100) + "%",
       width: ((x1 - x0) / a.width * 100) + "%", height: ((y1 - y0) / a.height * 100) + "%",
     });
-    d.innerHTML = `<span>${c.kind === "text" ? "text" : esc(c.category.replace(/_/g, " "))}</span>`;
+    d.innerHTML = `<span>${c.kind === "text" ? "text" : esc(pretty(c.category))}</span>`;
+    d.onclick = () => toggleBox(c.id, d.classList.contains("off"));
     $("stage").appendChild(d);
   });
 }
 
 function drawMap(points, gps) {
+  if (typeof L === "undefined") {  // map tiles need internet; keep the rest working offline
+    $("map").style.height = "auto";
+    $("map").innerHTML = "<p class='muted' style='padding:8px'>Map unavailable (offline). Coordinates: " +
+      (points.map(p => `${p.lat}, ${p.lon}`).slice(0, 3).join(" · ") || "none") + "</p>";
+    return;
+  }
   if (!map) {
     map = L.map("map", { worldCopyJump: true }).setView([20, 0], 1);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap" }).addTo(map);
@@ -222,31 +280,34 @@ function drawMap(points, gps) {
   setTimeout(() => map.invalidateSize(), 50);
 }
 
-async function scrub() {
-  const chosen = [...document.querySelectorAll("#clues input:checked")].map(i => i.dataset.id);
-  const boxes = analysis.clues.filter(c => chosen.includes(c.id)).map(c => c.box);
-  $("scrubBtn").disabled = true;
-  $("status").textContent = "Scrubbing and re-checking…";
-  const fd = new FormData(); fd.append("file", currentFile); fd.append("boxes", JSON.stringify(boxes));
+async function clean(url, useSelection) {
+  const fd = new FormData();
+  fd.append("file", currentFile);
+  if (useSelection) {
+    const chosen = [...document.querySelectorAll("#clues input:checked")].map(i => i.dataset.id);
+    fd.append("boxes", JSON.stringify(analysis.clues.filter(c => chosen.includes(c.id)).map(c => c.box)));
+  }
+  busy(true, useSelection ? "Scrubbing and re-checking…" : "Finding the fewest clues to hide…");
   try {
-    const res = await fetch("/api/scrub", { method: "POST", body: fd });
-    if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
-    const out = await res.json();
-    const url = "data:image/jpeg;base64," + out.image_b64;
+    const out = await post(url, fd);
+    if (!useSelection) {  // reflect what auto-safe chose
+      analysis.clues.forEach(c => toggleBox(c.id, out.blurred.includes(c.id)));
+    }
+    const img = "data:image/jpeg;base64," + out.image_b64;
     $("beforeImg").src = $("photo").src;
-    $("afterImg").src = url;
-    $("download").href = url;
+    $("afterImg").src = img;
+    $("download").href = img;
     $("beforeRisk").innerHTML = `Before: <b class="${out.before.level}">${out.before.score} (${out.before.level})</b>`;
     $("afterRisk").innerHTML = `After: <b class="${out.after.risk.level}">${out.after.risk.score} (${out.after.risk.level})</b>`;
+    $("afterNote").hidden = !out.note;
+    $("afterNote").textContent = out.note;
     $("afterGeo").textContent = "Models now say: " + out.after.geolocation.summary;
     $("afterPanel").hidden = false;
     $("afterPanel").scrollIntoView({ behavior: "smooth" });
-    $("status").textContent = "";
+    busy(false);
   } catch (err) {
-    $("status").textContent = "";
-    $("error").textContent = "Scrub failed: " + err.message;
-  } finally {
-    $("scrubBtn").disabled = false;
+    busy(false);
+    $("error").textContent = "Cleaning failed: " + err.message;
   }
 }
 </script>

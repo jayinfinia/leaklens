@@ -6,13 +6,21 @@ Every point added is listed as a factor so the UI can explain the score.
 """
 
 from .. import config
-from ..schemas import Clue, ExifReport, Geolocation, Risk, RiskFactor
+from ..schemas import Clue, ExifReport, Geolocation, Risk, RiskFactor, SceneClue
 
 SCALE = 8.0  # raw points -> 0-100
-GPS_POINTS = 13.0  # alone pushes the score past the "high" cutoff
+GPS_POINTS = 12.5  # exact GPS alone maxes the score (12.5 * 8 = 100)
+IMPACT_POINTS = 4.0  # extra points for a clue the model visibly leans on
 
 
-def score(exif: ExifReport, clues: list[Clue], geo: Geolocation) -> Risk:
+def level_for(value: int) -> str:
+    if value >= config.RISK_HIGH:
+        return "high"
+    return "medium" if value >= config.RISK_MEDIUM else "low"
+
+
+def score(exif: ExifReport, clues: list[Clue], geo: Geolocation,
+          scene: list[SceneClue] | None = None) -> Risk:
     factors: list[RiskFactor] = []
 
     if exif.gps:
@@ -26,9 +34,17 @@ def score(exif: ExifReport, clues: list[Clue], geo: Geolocation) -> Risk:
                                   reason=f"Device model in metadata ({exif.device})."))
 
     for c in clues:
-        name = c.label if c.kind == "text" else c.category.replace("_", " ")
-        factors.append(RiskFactor(source=c.id, points=round(c.weight * c.score, 2),
-                                  reason=f"{name}: {c.reason}"))
+        name = f"“{c.label}”" if c.kind == "text" else c.category.replace("_", " ")
+        points = c.weight * c.score
+        reason = f"{name}: {c.reason}"
+        if c.impact:
+            points += IMPACT_POINTS * c.impact
+            reason += f" Hiding it alone cuts the model's confidence by {c.impact * 100:.0f} pts."
+        factors.append(RiskFactor(source=c.id, points=round(points, 2), reason=reason))
+
+    for s in scene or []:
+        factors.append(RiskFactor(source="scene", points=round(s.weight * s.prob, 2),
+                                  reason=f"Scene: {s.label}. {s.reason}"))
 
     # How sure the geolocation models are counts too, even with no clues.
     if geo.country:
@@ -42,6 +58,5 @@ def score(exif: ExifReport, clues: list[Clue], geo: Geolocation) -> Risk:
 
     raw = sum(f.points for f in factors)
     value = int(min(100, round(raw * SCALE)))
-    level = "high" if value >= config.RISK_HIGH else "medium" if value >= config.RISK_MEDIUM else "low"
     factors.sort(key=lambda f: f.points, reverse=True)
-    return Risk(score=value, level=level, factors=factors)
+    return Risk(score=value, level=level_for(value), factors=factors)

@@ -20,8 +20,11 @@ def main(path: str) -> None:
     print(f"Geo:  {a.geolocation.summary}")
     if a.exif.gps:
         print(f"GPS:  {a.exif.gps.lat}, {a.exif.gps.lon}")
-    for c in a.clues:
-        print(f"  [{c.score:.2f}] {c.category:<16} {c.label}")
+    for c in sorted(a.clues, key=lambda c: c.impact or 0, reverse=True):
+        impact = f"  impact -{c.impact * 100:.0f} pts" if c.impact is not None else ""
+        print(f"  [{c.score:.2f}] {c.category:<16} {c.label}{impact}")
+    for s in a.scene:
+        print(f"  scene {s.category:<16} {s.prob:.0%}")
     print("Factors:")
     for f in a.risk.factors:
         print(f"  +{f.points:<5} {f.reason}")

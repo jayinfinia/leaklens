@@ -2,6 +2,7 @@
 
 from .. import config
 from ..schemas import Clue
+from . import mock
 
 
 def _iou(a, b) -> float:
@@ -25,7 +26,7 @@ def _nms(clues: list[Clue], iou_thresh: float = 0.5) -> list[Clue]:
 
 def detect_clues(image) -> list[Clue]:
     if config.MOCK_MODE:
-        return _mock(image)
+        return mock.clues(image)
 
     import torch
 
@@ -68,12 +69,3 @@ def detect_clues(image) -> list[Clue]:
         ))
     return _nms(clues)
 
-
-def _mock(image) -> list[Clue]:
-    w, h = image.size
-    spec = config.CLUE_CATEGORIES["street_sign"]
-    return [Clue(
-        id="obj-0", kind="object", category="street_sign", label="a street sign",
-        score=0.71, box=[w * 0.08, h * 0.12, w * 0.34, h * 0.26],
-        reason=spec["reason"], weight=spec["weight"],
-    )]

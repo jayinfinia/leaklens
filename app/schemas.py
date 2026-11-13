@@ -14,6 +14,18 @@ class Clue(BaseModel):
     box: list[float]  # [x0, y0, x1, y1] in original-image pixels
     reason: str
     weight: float
+    # How much blurring this clue alone lowers confidence in the top
+    # location guess (0-1). None when attribution is off.
+    impact: Optional[float] = None
+
+
+class SceneClue(BaseModel):
+    """A whole-image signal (skyline, vegetation...) with no box to blur."""
+    category: str
+    label: str
+    prob: float
+    reason: str
+    weight: float
 
 
 class GuessLabel(BaseModel):
@@ -59,8 +71,11 @@ class Analysis(BaseModel):
     height: int
     exif: ExifReport
     clues: list[Clue]
+    scene: list[SceneClue] = Field(default_factory=list)
     geolocation: Geolocation
     risk: Risk
+    # JPEG preview for formats browsers can't show (e.g. HEIC from iPhones).
+    preview_b64: Optional[str] = None
     mock: bool = False
 
 
@@ -68,3 +83,5 @@ class ScrubResult(BaseModel):
     image_b64: str  # JPEG, no metadata
     before: Risk
     after: Analysis
+    blurred: list[str] = Field(default_factory=list)  # clue ids
+    note: str = ""

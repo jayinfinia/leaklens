@@ -14,7 +14,7 @@ from .scrub import blur_regions
 
 
 def plan(upright, analysis: Analysis) -> tuple[list[str], str]:
-    matched = {m.clue_id for m in analysis.text_matches}
+    matched = {m.clue_id for m in analysis.text_matches if m.confidence == "strong"}
     # Text that matched a real place goes first, then what the model leans on most.
     clues = sorted(analysis.clues,
                    key=lambda c: (c.id in matched, c.impact or 0, c.weight * c.score), reverse=True)

@@ -37,6 +37,9 @@ class TextMatch(BaseModel):
     lat: float
     lon: float
     kind: str = ""
+    confidence: str = "strong"  # "strong" (one clear place) or "weak" (possible match)
+    n_results: int = 1
+    note: str = ""
 
 
 class GuessLabel(BaseModel):

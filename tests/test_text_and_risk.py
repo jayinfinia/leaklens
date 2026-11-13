@@ -131,20 +131,62 @@ def test_lookup_respects_query_budget(monkeypatch):
     assert lookup_mod.lookup(clues, geo) == [] and len(calls) == 3
 
 
-def test_lookup_prefers_the_match_nearest_the_model_pin(monkeypatch):
-    from app import config
+def _geo_dc():
     from app.schemas import GuessPoint
 
+    return Geolocation(country=[GuessLabel(name="United States", prob=0.9)],
+                       region=[GuessLabel(name="Washington, D.C.", prob=0.82)],
+                       points=[GuessPoint(lat=38.9, lon=-77.0, prob=0.1)])
+
+
+def test_single_common_word_across_the_country_is_only_a_possible_match(monkeypatch):
+    """Huntsville photo: OCR reads only "POPPY", the model wrongly says D.C.,
+    and "POPPY" matches businesses nationwide. We must not claim Richmond."""
+    from app import config
+
     monkeypatch.setattr(config, "MOCK_MODE", False)
-    hits = (("Paramount Drive, Virginia Beach", 36.85, -75.98, "road"),
-            ("The Paramount Theater, Charlottesville", 38.03, -78.48, "theatre"))
+    hits = (("Poppy, Huntsville, Alabama", 34.73, -86.59, "restaurant"),
+            ("Poppy, Richmond, Virginia", 37.54, -77.45, "restaurant"),
+            ("Poppy, Seattle, Washington", 47.61, -122.33, "restaurant"))
+    monkeypatch.setattr(lookup_mod, "_search",
+                        lambda q, countrycodes="": () if "," in q else hits)
+    clue = Clue(id="t", kind="text", category="text:name", label="POPPY", score=0.51,
+                box=[0, 0, 1, 1], reason="r", weight=2.5)
+    m = lookup_mod.lookup([clue], _geo_dc())[0]
+    assert m.confidence == "weak"
+    assert m.name.startswith("Poppy, Huntsville")  # search ranking, not the (wrong) model pin
+    assert "share this name" in m.note
+    weak = score(ExifReport(), [clue], Geolocation(), matches=[m])
+    strong = score(ExifReport(), [clue], Geolocation(), matches=[m.model_copy(update={"confidence": "strong"})])
+    assert weak.score < strong.score
+
+
+def test_one_clear_place_in_the_hinted_region_is_strong(monkeypatch):
+    from app import config
+
+    monkeypatch.setattr(config, "MOCK_MODE", False)
+    hits = (("The Paramount Theater, 215 East Main Street, Charlottesville", 38.0306, -78.4817, "theatre"),
+            ("Paramount Theater (entrance), Charlottesville", 38.0307, -78.4819, "entrance"))
     monkeypatch.setattr(lookup_mod, "_search", lambda q, countrycodes="": hits)
     geo = Geolocation(country=[GuessLabel(name="United States", prob=0.9)],
-                      region=[GuessLabel(name="Virginia", prob=0.4)],
-                      points=[GuessPoint(lat=37.9, lon=-78.9, prob=0.1)])
+                      region=[GuessLabel(name="Virginia", prob=0.41)])
     clue = Clue(id="t", kind="text", category="text:name", label="PARAMOUNT", score=0.86,
                 box=[0, 0, 1, 1], reason="r", weight=2.5)
-    assert "Charlottesville" in lookup_mod.lookup([clue], geo)[0].name
+    m = lookup_mod.lookup([clue], geo)[0]
+    assert m.confidence == "strong" and "Charlottesville" in m.name
+
+
+def test_specific_multiword_name_is_strong_without_a_hint(monkeypatch):
+    from app import config
+
+    monkeypatch.setattr(config, "MOCK_MODE", False)
+    hit = (("Poppy & Parliament, Huntsville, Alabama", 34.73, -86.59, "pub"),)
+    monkeypatch.setattr(lookup_mod, "_search",
+                        lambda q, countrycodes="": () if "," in q else hit)
+    clue = Clue(id="t", kind="text", category="text:name", label="POPPY & PARLIAMENT", score=0.5,
+                box=[0, 0, 1, 1], reason="r", weight=2.5)
+    m = lookup_mod.lookup([clue], _geo_dc())[0]
+    assert m.confidence == "strong" and "Huntsville" in m.name
 
 
 def test_query_cleanup():

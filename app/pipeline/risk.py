@@ -24,6 +24,7 @@ CLUE_SCALE = 0.5 / 3.0  # weight 3 at full confidence -> 0.5
 IMPACT_SCALE = 1.5  # a clue that cuts the top guess by 10 pts adds 0.15
 GPS_LEAK = 1.0
 MATCH_LEAK = 0.85
+WEAK_MATCH_LEAK = 0.25
 
 
 def level_for(value: int) -> str:
@@ -60,7 +61,11 @@ def score(exif: ExifReport, clues: list[Clue], geo: Geolocation,
         add(0.02, "metadata", f"Device model in metadata ({exif.device}).")
 
     for m in matches or []:
-        add(MATCH_LEAK, m.clue_id, f"Sign text “{m.text}” matches a real place: {m.name}.")
+        if m.confidence == "strong":
+            add(MATCH_LEAK, m.clue_id, f"Sign text “{m.text}” matches a real place: {m.name}.")
+        else:
+            add(WEAK_MATCH_LEAK, m.clue_id,
+                f"Sign text “{m.text}” possibly matches {m.name}. {m.note}")
 
     by_cat: dict[str, list[Clue]] = defaultdict(list)
     for c in clues:

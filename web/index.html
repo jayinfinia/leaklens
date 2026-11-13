@@ -63,6 +63,8 @@
   #found b { color: var(--high); }
   #found small { color: var(--muted); display: block; }
   .tag.blue { background: var(--accent); color: #04121f; }
+  .tag.grey { background: var(--line); color: var(--text); }
+  .match.weak { border-left-color: var(--line); }
   .match small { color: var(--muted); display: block; }
 </style>
 </head>
@@ -206,7 +208,7 @@ function render(a) {
   $("report").hidden = false;
   $("actions").hidden = false;
   setRisk(a.risk);
-  const m0 = a.text_matches[0];
+  const m0 = a.text_matches.find(m => m.confidence === "strong");
   $("found").hidden = !m0;
   if (m0) $("found").innerHTML = `<b>Exact place found from sign text “${esc(m0.text)}”</b>
     <div>${esc(m0.name)}</div><small>No GPS needed: one search for what's written on the sign.</small>`;
@@ -232,9 +234,11 @@ function render(a) {
       bar = `<div class="impact"><div style="width:${Math.round(c.impact / maxImpact * 100)}%"></div></div><small>${msg}</small>`;
     }
     const m = matchFor[c.id];
-    const tags = (m ? '<span class="tag blue">found on map</span>' : "")
+    const tags = (m ? (m.confidence === "strong" ? '<span class="tag blue">found on map</span>'
+                                                 : '<span class="tag grey">possible match</span>') : "")
       + (c.id === topId ? '<span class="tag">model leans on it</span>' : "");
-    const reason = m ? `Search found it: ${esc(m.name)}` : esc(c.reason);
+    const reason = !m ? esc(c.reason) : m.confidence === "strong" ? `Search found it: ${esc(m.name)}`
+      : `${esc(c.reason)} Possible match: ${esc(m.name)}. ${esc(m.note)}`;
     li.innerHTML = `<input type="checkbox" checked data-id="${c.id}">
       <div><b>${clueName(c)}</b>${tags}
       <span class="muted">${Math.round(c.score * 100)}%</span><small>${reason}</small>${m ? "" : bar}</div>`;
@@ -257,8 +261,9 @@ function render(a) {
   const g = a.geolocation;
   const alts = (g.region.length ? g.region : g.country).slice(1, 4).map(x => `${esc(x.name)} ${Math.round(x.prob * 100)}%`).join(" · ");
   $("geoSummary").innerHTML = `<b>${esc(g.summary)}</b>${alts ? `<br><small class="muted">Also: ${alts}</small>` : ""}`;
-  $("matches").innerHTML = a.text_matches.map(m =>
-    `<div class="match"><b>Sign text “${esc(m.text)}” found on the map</b><small>${esc(m.name)}</small><small>searched: ${esc(m.query)}</small></div>`).join("")
+  $("matches").innerHTML = a.text_matches.map(m => m.confidence === "strong"
+    ? `<div class="match"><b>Sign text “${esc(m.text)}” found on the map</b><small>${esc(m.name)}</small><small>searched: ${esc(m.query)}</small></div>`
+    : `<div class="match weak"><b>Possible match for “${esc(m.text)}”</b><small>${esc(m.name)}</small><small>${esc(m.note)} Searched: ${esc(m.query)}</small></div>`).join("")
     || (a.lookup_used ? "<p class='muted'><small>No sign text matched a place on OpenStreetMap.</small></p>" : "");
   drawMap(g.points, ex.gps, a.text_matches);
 
@@ -315,11 +320,14 @@ function drawMap(points, gps, matches = []) {
     L.circleMarker([p.lat, p.lon], { radius: i ? 6 : 10, color: "#f85149", fillOpacity: i ? .3 : .7 })
       .bindTooltip(`Guess ${i + 1}: ${Math.round(p.prob * 100)}%`).addTo(map)));
   matches.forEach(m => markers.push(
-    L.circleMarker([m.lat, m.lon], { radius: 9, color: "#58a6ff", fillOpacity: .8 })
+    L.circleMarker([m.lat, m.lon], m.confidence === "strong"
+      ? { radius: 9, color: "#58a6ff", fillOpacity: .8 }
+      : { radius: 8, color: "#58a6ff", fillOpacity: 0, dashArray: "3 3" })
       .bindTooltip(`Sign text “${m.text}”: ${m.name.split(",").slice(0, 3).join(",")}`).addTo(map)));
   if (gps) markers.push(L.marker([gps.lat, gps.lon]).bindTooltip("Exact GPS from metadata").addTo(map));
-  if (matches.length) {
-    map.setView([matches[0].lat, matches[0].lon], 16);  // the exact building
+  const strong = matches.find(m => m.confidence === "strong");
+  if (strong) {
+    map.setView([strong.lat, strong.lon], 16);  // the exact building
     markers[points.length]?.openTooltip?.();
   } else if (markers.length) {
     map.fitBounds(L.featureGroup(markers).getBounds().pad(0.6), { maxZoom: 8 });

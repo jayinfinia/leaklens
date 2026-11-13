@@ -23,6 +23,7 @@ from ..schemas import Clue, Geolocation, TextMatch
 from .text_intel import clean_query
 
 UA = "LeakLens/0.3 (photo privacy checker; https://github.com/jayinfinia/leaklens)"
+AMBIGUOUS_KM = 50
 SEARCHABLE = {"name", "institution", "street", "place", "acronym", "web", "zip"}
 _last_call = 0.0
 
@@ -54,16 +55,17 @@ def _candidates(clues: list[Clue]) -> list[Clue]:
     return sorted(texts, key=lambda c: c.weight * c.score, reverse=True)
 
 
-def _queries(text: str, geo: Geolocation) -> list[str]:
+def _queries(text: str, geo: Geolocation) -> list[tuple[str, bool]]:
+    """(query, uses_region_hint) pairs, most specific first."""
     text = clean_query(text)
     if len(text) < 3:
         return []
     hints = []
     if geo.region:
-        hints.append(f"{text}, {geo.region[0].name}")
+        hints.append((f"{text}, {geo.region[0].name}", True))
     elif geo.country and geo.country[0].prob >= 0.3:
-        hints.append(f"{text}, {geo.country[0].name}")
-    return hints + [text]
+        hints.append((f"{text}, {geo.country[0].name}", True))
+    return hints + [(text, False)]
 
 
 def _km(lat1, lon1, lat2, lon2) -> float:
@@ -73,32 +75,59 @@ def _km(lat1, lon1, lat2, lon2) -> float:
     return 12742 * math.asin(math.sqrt(a))
 
 
-def _pick(hits: tuple, geo: Geolocation):
-    """Several places share a name: take the one nearest the model's own pin."""
-    if len(hits) > 1 and geo.points:
-        pin = geo.points[0]
-        return min(hits, key=lambda h: _km(h[1], h[2], pin.lat, pin.lon))
-    return hits[0]
+def _spread_km(hits: tuple) -> float:
+    return max((_km(a[1], a[2], b[1], b[2]) for a in hits for b in hits), default=0.0)
+
+
+def judge(text: str, hits: tuple, hinted: bool, geo: Geolocation):
+    """Pick a hit and decide how much to trust it.
+
+    Strong: every result sits in one place (within 50 km), and either the
+    search was narrowed by the model's region or the text is specific
+    (2+ meaningful words). Everything else is a possible match: a single
+    common word like "POPPY" can match businesses in many cities, and we
+    must not let the model's (possibly wrong) pin pick one for us.
+    """
+    spread = _spread_km(hits)
+    together = spread <= AMBIGUOUS_KM
+    specific = len(clean_query(text).split()) >= 2
+    if together and (hinted or specific):
+        if len(hits) > 1 and geo.points:  # same area: the model's pin can break ties
+            pin = geo.points[0]
+            best = min(hits, key=lambda h: _km(h[1], h[2], pin.lat, pin.lon))
+        else:
+            best = hits[0]
+        return best, "strong", ""
+    if not together:
+        n = f"{len(hits)}+" if len(hits) >= 5 else str(len(hits))
+        if hinted and geo.points:  # within the model's region, show the one nearest its guess
+            pin = geo.points[0]
+            best = min(hits, key=lambda h: _km(h[1], h[2], pin.lat, pin.lon))
+            return best, "weak", f"{n} places in that area share this name; showing the one nearest the model's guess."
+        return hits[0], "weak", f"{n} places share this name, up to {spread:,.0f} km apart."
+    return hits[0], "weak", "A single word: could be a coincidence."
 
 
 def lookup(clues: list[Clue], geo: Geolocation) -> list[TextMatch]:
     if config.MOCK_MODE:
         return [TextMatch(clue_id=c.id, text=c.label, query=f"{c.label}, Virginia",
                           name=f"{c.label.title()}, Charlottesville, Virginia, United States",
-                          lat=38.0313, lon=-78.4826, kind="road")
+                          lat=38.0313, lon=-78.4826, kind="road", confidence="strong")
                 for c in _candidates(clues)[:1]]
 
     us = bool(geo.country) and geo.country[0].name == "United States" and geo.country[0].prob >= 0.5
     matches, budget = [], config.LOOKUP_MAX_QUERIES
     for c in _candidates(clues):
-        for q in _queries(c.label, geo):
+        for q, hinted in _queries(c.label, geo):
             if budget <= 0:
                 return matches
             budget -= 1
             hits = _search(q, "us" if us else "")
             if hits:
-                name, lat, lon, kind = _pick(hits, geo)
-                matches.append(TextMatch(clue_id=c.id, text=c.label, query=q,
-                                         name=name, lat=lat, lon=lon, kind=kind))
+                (name, lat, lon, kind), confidence, note = judge(c.label, hits, hinted, geo)
+                matches.append(TextMatch(clue_id=c.id, text=c.label, query=q, name=name, lat=lat,
+                                         lon=lon, kind=kind, confidence=confidence,
+                                         n_results=len(hits), note=note))
                 break
-    return matches
+    # strongest first
+    return sorted(matches, key=lambda m: m.confidence != "strong")

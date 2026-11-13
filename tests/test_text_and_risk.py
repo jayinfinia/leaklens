@@ -7,6 +7,11 @@ from app.pipeline.text_intel import classify
 from app.schemas import Clue, ExifReport, Geolocation, GuessLabel, TextMatch
 
 
+@pytest.fixture(autouse=True)
+def no_network(monkeypatch):
+    monkeypatch.setattr(lookup_mod, "_overpass", lambda points, regexes: [])
+
+
 # ----------------------------------------------------------- text intel
 @pytest.mark.parametrize("text,kind", [
     ("CONGRATULATIONS", "generic"),
@@ -210,3 +215,114 @@ def test_vertical_sign_unstacks_into_a_row():
     assert len(letter_rows(col)) == 9
     row, n = unstack(col)
     assert n == 9 and row.width > row.height * 3
+
+
+# ----------------------------------------------------------- co-location
+HUNTSVILLE = (34.7304, -86.5861)
+POPPYS = (("Poppy, Richmond, Virginia", 37.54, -77.45, "restaurant"),
+          ("Poppy, Seattle, Washington", 47.61, -122.33, "restaurant"),
+          ("Poppy, Huntsville, Alabama", HUNTSVILLE[0], HUNTSVILLE[1], "restaurant"))
+
+
+def _text(cid, label, kind="name", score=0.6):
+    return Clue(id=cid, kind="text", category=f"text:{kind}", label=label, score=score,
+                box=[0, 0, 1, 1], reason="r", weight=2.5)
+
+
+def test_two_signs_near_each_other_settle_an_ambiguous_word(monkeypatch):
+    from app import config
+
+    monkeypatch.setattr(config, "MOCK_MODE", False)
+    butcher = (("Butcher Shoppe, Huntsville, Alabama", HUNTSVILLE[0] + 0.0008, HUNTSVILLE[1], "shop"),
+               ("Butcher Shoppe, Portland, Oregon", 45.52, -122.68, "shop"))
+
+    def fake(q, countrycodes=""):
+        if "," in q:
+            return ()
+        return POPPYS if q == "POPPY" else butcher
+
+    monkeypatch.setattr(lookup_mod, "_search", fake)
+    out = {m.text: m for m in lookup_mod.lookup([_text("a", "POPPY"), _text("b", "BUTCHER SHOPPE")], _geo_dc())}
+    assert out["POPPY"].confidence == "strong"
+    assert "Huntsville" in out["POPPY"].name and "Butcher Shoppe" in out["POPPY"].note
+
+
+def test_overpass_finds_another_signs_name_next_to_one_candidate(monkeypatch):
+    from app import config
+
+    monkeypatch.setattr(config, "MOCK_MODE", False)
+    monkeypatch.setattr(lookup_mod, "_search", lambda q, countrycodes="": () if "," in q or q != "POPPY" else POPPYS)
+    seen = {}
+
+    def fake_overpass(points, regexes):
+        seen["regexes"] = regexes
+        return [("Poppy & Parliament", HUNTSVILLE[0] + 0.0002, HUNTSVILLE[1]),
+                ("Poppy", 37.54, -77.45)]  # a candidate's own name never counts as support
+
+    monkeypatch.setattr(lookup_mod, "_overpass", fake_overpass)
+    clues = [_text("a", "POPPY"), _text("b", "PARLIAMENT", score=0.3), _text("c", "CLASS OF 2024", "generic")]
+    m = [x for x in lookup_mod.lookup(clues, _geo_dc()) if x.text == "POPPY"][0]
+    assert m.confidence == "strong" and "Huntsville" in m.name and "Poppy & Parliament" in m.note
+    assert len(seen["regexes"]) == 1  # generic text is never used as evidence
+
+
+@pytest.mark.parametrize("sign,osm_name,ok", [
+    ("MAIN ST", "Main Street", True),
+    ("POPPY & PARLIAMENT", "Poppy and Parliament", True),
+    ("POPPY & PARLIAMENT", "Poppy & Parliament", True),
+    ("illy", "Lilly's Cafe", False),
+    ("PARAMOUNT", "The Paramount Theater", True),
+])
+def test_term_regex(sign, osm_name, ok):
+    import re
+
+    pattern = lookup_mod.term_regex(sign)
+    assert bool(re.search(pattern, osm_name, re.I)) is ok
+
+
+# ----------------------------------------------------------- zoomed crops
+class _FakeEngine:
+    min_conf = 0.3
+
+    def __init__(self, reads):
+        self.reads = reads
+
+    def readtext(self, image):
+        return self.reads(image)
+
+
+def test_crop_reading_maps_boxes_back_to_the_full_image():
+    from PIL import Image
+
+    from app.pipeline.ocr import read_crop
+
+    img = Image.new("RGB", (1000, 800))
+    eng = _FakeEngine(lambda crop: [([[10, 10], [110, 10], [110, 40], [10, 40]], "PARLIAMENT", 0.9)])
+    (item,) = read_crop(eng, img, [400, 300, 500, 340])  # 100x40 box, upscaled ~8x capped to 3x
+    x0, y0, x1, y1 = item.box
+    assert 388 <= x0 <= 400 and 295 <= y0 <= 300 and x1 < 440
+
+
+def test_dedupe_keeps_the_fuller_reading():
+    from app.pipeline.ocr import _Item, dedupe
+
+    out = dedupe([_Item([100, 100, 200, 140], "POPPY", 0.9),
+                  _Item([95, 98, 420, 142], "POPPY & PARLIAMENT", 0.6),
+                  _Item([600, 100, 700, 140], "illy", 0.5)])
+    assert sorted(i.text for i in out) == ["POPPY & PARLIAMENT", "illy"]
+
+
+def test_engine_falls_back_to_easyocr_off_mac(monkeypatch):
+    import sys
+
+    from app import config, models
+    from app.pipeline import ocr_engines
+
+    monkeypatch.setattr(config, "OCR_ENGINE", "auto")
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr(models, "ocr", lambda: object())
+    ocr_engines.get_engine.cache_clear()
+    try:
+        assert ocr_engines.get_engine().name == "easyocr"
+    finally:
+        ocr_engines.get_engine.cache_clear()

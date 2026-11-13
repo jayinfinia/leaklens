@@ -24,6 +24,10 @@ USE_GEOCLIP = os.getenv("LEAKLENS_USE_GEOCLIP", "1") == "1"
 DETECT_THRESHOLD = float(os.getenv("LEAKLENS_DETECT_THRESHOLD", "0.3"))
 MAX_OBJECT_CLUES = int(os.getenv("LEAKLENS_MAX_OBJECT_CLUES", "12"))
 OCR_LANGS = ["en"]
+OCR_ENGINE = os.getenv("LEAKLENS_OCR_ENGINE", "auto")  # auto | apple | easyocr
+OCR_APPLE_LANGS = ["en-US"]
+OCR_MAX_CROPS = int(os.getenv("LEAKLENS_OCR_MAX_CROPS", "8"))
+OCR_CROP_MAX_AREA = 0.25  # skip crops bigger than this share of the image
 OCR_MAX_SIDE = int(os.getenv("LEAKLENS_OCR_MAX_SIDE", "2048"))
 OCR_MIN_CONF = float(os.getenv("LEAKLENS_OCR_MIN_CONF", "0.4"))
 
@@ -107,7 +111,9 @@ ATTRIBUTION_MAX_CLUES = int(os.getenv("LEAKLENS_ATTRIBUTION_MAX", "8"))
 # Optional: search detected sign text on OpenStreetMap (Nominatim).
 # Off by default because it sends the text off this machine.
 TEXT_LOOKUP = os.getenv("LEAKLENS_TEXT_LOOKUP", "0") == "1"
-LOOKUP_MAX_QUERIES = int(os.getenv("LEAKLENS_LOOKUP_MAX", "4"))
+LOOKUP_MAX_QUERIES = int(os.getenv("LEAKLENS_LOOKUP_MAX", "8"))
+OVERPASS_URL = os.getenv("LEAKLENS_OVERPASS_URL", "https://overpass-api.de/api/interpreter")
+NEARBY_M = 300  # two clues this close together corroborate each other
 NOMINATIM_URL = os.getenv("LEAKLENS_NOMINATIM_URL", "https://nominatim.openstreetmap.org/search")
 
 # Risk level cutoffs on the 0-100 score.

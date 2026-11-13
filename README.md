@@ -10,10 +10,10 @@ Stripping EXIF data isn't enough. A street sign in the background, a storefront,
 |---|---|---|
 | 1. Metadata | Reads GPS, timestamp and device info from the file, then strips all of it | Pillow |
 | 2. Visual clues | Draws boxes around location-revealing objects (street signs, house numbers, plates, storefronts, landmarks, transit signs) | OWLv2 (open-vocabulary detection) |
-| 2. Text | Reads whole signs (merges words, stitches vertical marquee letters) and weights them by what they reveal: city or street names, phone numbers and institutions count far more than "CLASS OF 2024" | EasyOCR |
+| 2. Text | Reads the full photo, then re-reads every detected sign as a zoomed crop; merges words into whole signs, unstacks vertical marquee letters (PARAMOUNT), and weights text by what it reveals: city or street names, phone numbers and institutions count far more than "CLASS OF 2024" | Apple Vision (Live Text engine) on macOS, EasyOCR elsewhere |
 | 2. Scene | Flags whole-image signals with no single spot to blur (skyline, mountains, road markings, plants, architecture) | StreetCLIP |
 | 3. Geolocation | Guesses country, then US state, and drops pins on a map | StreetCLIP + GeoCLIP |
-| 3b. Sign-text lookup (opt-in) | Searches detected business and place names on OpenStreetMap, with the models' region guess as a hint, exactly as an investigator would. Matches show on the map | Nominatim |
+| 3b. Sign-text lookup (opt-in) | Searches detected business and place names on OpenStreetMap, with the models' region guess as a hint. One word like "POPPY" matches many cities, so clues are used together: a candidate is confirmed when another sign in the photo also matches something within ~300 m. Matches are graded strong or possible, never overclaimed | Nominatim + Overpass |
 | 4. Attribution | Blurs each clue on its own and measures how much the top guess weakens, so you see which clue gave it away | StreetCLIP (batched) |
 | 5. Risk + fix | Explainable 0-100 score. **Make it safe** blurs the fewest clues needed to reach low risk; or pick clues yourself. Everything is re-checked after | |
 
@@ -75,6 +75,8 @@ All settings live in `app/config.py` and can be overridden with environment vari
 | `LEAKLENS_DETECT_THRESHOLD` | `0.3` | OWLv2 confidence cutoff |
 | `LEAKLENS_TEXT_LOOKUP` | `0` | Default for the OpenStreetMap sign-text lookup (the UI has a toggle) |
 | `LEAKLENS_OCR_MAX_SIDE` | `2048` | OCR reads a sharper copy than the vision models |
+| `LEAKLENS_OCR_ENGINE` | `auto` | `apple` (macOS Vision), `easyocr`, or `auto` (Apple when available) |
+| `LEAKLENS_OCR_MAX_CROPS` | `8` | Detected signs re-read as zoomed crops |
 | `LEAKLENS_USE_GEOCLIP` | `1` | Turn off map pins if GeoCLIP is slow |
 | `LEAKLENS_MAX_SIDE` | `1280` | Longest side used for analysis |
 | `LEAKLENS_ATTRIBUTION` | `1` | Per-clue "which clue gave it away" test |

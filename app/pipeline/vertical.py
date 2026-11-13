@@ -120,7 +120,7 @@ def is_tall(box, min_ratio: float = 2.5, min_height: float = 60) -> bool:
     return h >= min_height and h >= min_ratio * max(w, 1)
 
 
-def read_vertical(reader, image: Image.Image, box) -> tuple[str, float] | None:
+def read_vertical(engine, image: Image.Image, box) -> tuple[str, float] | None:
     """OCR a tall region as stacked letters. Returns (text, confidence)."""
     x0, y0, x1, y1 = (int(round(v)) for v in box)
     col = image.crop((max(0, x0), max(0, y0), min(image.width, x1), min(image.height, y1)))
@@ -128,9 +128,9 @@ def read_vertical(reader, image: Image.Image, box) -> tuple[str, float] | None:
     if out is None:
         return None
     row, _ = out
-    res = reader.recognize(np.array(row), detail=1)
+    res = engine.recognize_row(row)
     if not res:
         return None
-    _, text, conf = res[0]
+    text, conf = res
     text = "".join(ch for ch in text if ch.isalnum() or ch in " &'-").strip()
     return (text, float(conf)) if sum(ch.isalnum() for ch in text) >= 3 else None

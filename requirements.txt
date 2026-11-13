@@ -10,3 +10,4 @@ torchvision>=0.17
 transformers>=4.45  # tested on 4.46 and 5.x
 easyocr>=1.7
 geoclip>=1.2
+pyobjc-framework-Vision>=10.0; sys_platform == "darwin"  # Apple Vision OCR (Live Text engine)

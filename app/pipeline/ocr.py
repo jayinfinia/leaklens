@@ -95,7 +95,7 @@ def merge_lines(items: list[_Item]) -> list[_Item]:
         for j in range(i + 1, n):
             a, b = items[i], items[j]
             ha, hb = max(a.h, 1), max(b.h, 1)
-            if max(ha, hb) / min(ha, hb) > 2.5:
+            if max(ha, hb) / min(ha, hb) > 1.8:
                 continue  # very different text sizes: different signs
             pad = 0.6 * min(ha, hb)
             if (a.box[0] - pad <= b.box[2] and b.box[0] - pad <= a.box[2] and
@@ -143,19 +143,67 @@ def _overlaps(a, b, thresh=0.5) -> bool:
     return area > 0 and inter / area >= thresh
 
 
+def _alnum(text: str) -> int:
+    return sum(ch.isalnum() for ch in text)
+
+
+def _to_items(raw, min_conf: float, offset=(0.0, 0.0), scale: float = 1.0) -> list[_Item]:
+    items = []
+    for points, text, conf in raw:
+        single = len(text.strip()) == 1
+        # stacked marquee letters read with low confidence one at a time;
+        # they only survive if 3+ line up into a word (stack_vertical_letters)
+        if not text.strip() or conf < (0.15 if single else min_conf):
+            continue
+        xs = [float(p[0]) / scale + offset[0] for p in points]
+        ys = [float(p[1]) / scale + offset[1] for p in points]
+        items.append(_Item([min(xs), min(ys), max(xs), max(ys)], text, float(conf)))
+    return items
+
+
+def read_crop(engine, image, box, target: int = 1024, pad: float = 0.12) -> list[_Item]:
+    """Re-read one detected sign as a zoomed crop; small text reads better big."""
+    w, h = box[2] - box[0], box[3] - box[1]
+    x0 = max(0, int(box[0] - pad * w))
+    y0 = max(0, int(box[1] - pad * h))
+    x1 = min(image.width, int(box[2] + pad * w))
+    y1 = min(image.height, int(box[3] + pad * h))
+    if x1 - x0 < 8 or y1 - y0 < 8:
+        return []
+    crop = image.crop((x0, y0, x1, y1))
+    scale = min(3.0, target / max(crop.size))
+    if scale > 1.1:
+        from PIL import Image
+
+        crop = crop.resize((int(crop.width * scale), int(crop.height * scale)), Image.LANCZOS)
+    else:
+        scale = 1.0
+    return _to_items(engine.readtext(crop), engine.min_conf, offset=(x0, y0), scale=scale)
+
+
+def dedupe(items: list[_Item]) -> list[_Item]:
+    """Full-image and crop passes often read the same sign; keep the fuller
+    reading ("POPPY & PARLIAMENT" beats "POPPY")."""
+    kept: list[_Item] = []
+    for it in sorted(items, key=lambda i: (_alnum(i.text), i.conf), reverse=True):
+        if not any(_overlaps(it.box, k.box, 0.6) or (_overlaps(k.box, it.box, 0.6) and
+                                                     _alnum(k.text) >= _alnum(it.text))
+                   for k in kept):
+            kept.append(it)
+    return kept
+
+
 def find_text(image, extra_boxes: list[list[float]] | None = None) -> list[Clue]:
-    """`extra_boxes`: tall detector boxes (same coordinates as `image`) to try
-    as vertical signs even if OCR's own detector skipped them."""
+    """`extra_boxes`: detector boxes (same coordinates as `image`). Tall ones are
+    tried as vertical signs; the rest are re-read as zoomed crops."""
     if config.MOCK_MODE:
         return mock.text(image)
 
-    import numpy as np
-
-    from ..models import ocr
+    from .ocr_engines import get_engine
     from .vertical import is_tall, read_vertical
 
-    reader = ocr()
-    raw = reader.readtext(np.array(image.convert("RGB")))
+    engine = get_engine()
+    raw = engine.readtext(image)
 
     # Tall boxes are usually stacked letters read as nonsense: re-read them.
     vertical: list[_Item] = []
@@ -171,26 +219,27 @@ def find_text(image, extra_boxes: list[list[float]] | None = None) -> list[Clue]
             tall_boxes.append(box)
     for box in tall_boxes:
         try:
-            hit = read_vertical(reader, image, box)
+            hit = read_vertical(engine, image, box)
         except Exception as exc:  # never let one odd sign break the analysis
             print(f"[leaklens] vertical read failed: {exc}")
             hit = None
         if hit and hit[1] >= 0.4:
             vertical.append(_Item(box, hit[0], hit[1]))
 
-    items = list(vertical)
-    for points, text, conf in raw:
-        single = len(text.strip()) == 1
-        # stacked marquee letters read with low confidence one at a time;
-        # they only survive if 3+ line up into a word (stack_vertical_letters)
-        if not text.strip() or conf < (0.15 if single else config.OCR_MIN_CONF):
-            continue
-        xs = [float(p[0]) for p in points]
-        ys = [float(p[1]) for p in points]
-        box = [min(xs), min(ys), max(xs), max(ys)]
-        if any(_overlaps(box, v.box) for v in vertical):
-            continue  # replaced by the unstacked reading
-        items.append(_Item(box, text, float(conf)))
+    items = [i for i in _to_items(raw, engine.min_conf)
+             if not any(_overlaps(i.box, v.box) for v in vertical)]
+
+    # Zoomed second look at each detected sign (largest-confidence first).
+    area = image.width * image.height
+    crops = [b for b in (extra_boxes or []) if not is_tall(b)
+             and (b[2] - b[0]) * (b[3] - b[1]) < config.OCR_CROP_MAX_AREA * area]
+    for box in crops[: config.OCR_MAX_CROPS]:
+        try:
+            items += [i for i in read_crop(engine, image, box)
+                      if not any(_overlaps(i.box, v.box) for v in vertical)]
+        except Exception as exc:
+            print(f"[leaklens] crop read failed: {exc}")
+
     # vertical signs stay separate: merging would glue them to nearby text
-    rest = merge_lines(stack_vertical_letters([i for i in items if i not in vertical]))
+    rest = merge_lines(stack_vertical_letters(dedupe(items)))
     return to_clues(vertical + rest)

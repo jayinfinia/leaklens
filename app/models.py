@@ -69,6 +69,8 @@ def warm_up() -> None:
         return
     owl()
     streetclip()
-    ocr()
+    from .pipeline.ocr_engines import get_engine
+
+    get_engine()
     if config.USE_GEOCLIP:
         geoclip()

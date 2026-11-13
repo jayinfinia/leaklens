@@ -84,8 +84,13 @@ def real_paths(monkeypatch):
     monkeypatch.setattr(models, "streetclip", lambda: (TinyClipProcessor(), clip))
     monkeypatch.setattr(models, "owl", lambda: (TinyOwlProcessor(), owl))
     monkeypatch.setattr(models, "ocr", lambda: FakeOCR())
+    monkeypatch.setattr(config, "OCR_ENGINE", "easyocr")
+    from app.pipeline import ocr_engines
+
+    ocr_engines.get_engine.cache_clear()
     yield
     geolocate._text_embeds.cache_clear()
+    ocr_engines.get_engine.cache_clear()
 
 
 def test_full_analysis_runs_on_real_architectures(real_paths):

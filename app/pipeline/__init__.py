@@ -73,11 +73,11 @@ def analyze(raw: Image.Image, upright: Image.Image, explain: bool = True,
 
     objects = detect_clues(work)
     # OCR gets a sharper copy than the vision models: small sign text matters.
-    # Tall detector boxes are passed along as possible vertical signs.
+    # Detector boxes get a second, zoomed OCR pass (tall ones as vertical signs).
     ocr_img, ocr_factor = downscale(upright, config.OCR_MAX_SIDE)
     to_ocr = ocr_factor / factor
-    tall = [[v * to_ocr for v in c.box] for c in objects]
-    text = rescale(find_text(ocr_img, tall), to_ocr)  # -> `work` coordinates
+    sign_boxes = [[v * to_ocr for v in c.box] for c in objects]
+    text = rescale(find_text(ocr_img, sign_boxes), to_ocr)  # -> `work` coordinates
 
     clues = objects + text
     geo = geolocate(work, embeds)

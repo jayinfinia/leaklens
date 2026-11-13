@@ -59,6 +59,10 @@
   .toggle { display: flex; gap: 8px; align-items: flex-start; margin-top: 12px; color: var(--muted); font-size: 13px; }
   .toggle input { margin-top: 3px; }
   .match { border-left: 3px solid var(--accent); padding: 4px 0 4px 10px; margin-top: 8px; }
+  #found { margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: rgba(248,81,73,.12); border: 1px solid var(--high); }
+  #found b { color: var(--high); }
+  #found small { color: var(--muted); display: block; }
+  .tag.blue { background: var(--accent); color: #04121f; }
   .match small { color: var(--muted); display: block; }
 </style>
 </head>
@@ -104,6 +108,7 @@
       <h2>Location risk</h2>
       <div class="risk"><div id="score" class="score">0</div><div id="level" class="level"></div></div>
       <div class="meter"><div id="meterFill"></div></div>
+      <div id="found" hidden></div>
     </div>
 
     <div class="panel">
@@ -201,10 +206,17 @@ function render(a) {
   $("report").hidden = false;
   $("actions").hidden = false;
   setRisk(a.risk);
+  const m0 = a.text_matches[0];
+  $("found").hidden = !m0;
+  if (m0) $("found").innerHTML = `<b>Exact place found from sign text “${esc(m0.text)}”</b>
+    <div>${esc(m0.name)}</div><small>No GPS needed: one search for what's written on the sign.</small>`;
 
-  const clues = [...a.clues].sort((x, y) => (y.impact ?? 0) - (x.impact ?? 0) || y.score - x.score);
+  const matchFor = Object.fromEntries(a.text_matches.map(m => [m.clue_id, m]));
+  const clues = [...a.clues].sort((x, y) => (!!matchFor[y.id] - !!matchFor[x.id])
+    || (y.impact ?? 0) - (x.impact ?? 0) || y.score - x.score);
   const maxImpact = Math.max(0.0001, ...clues.map(c => c.impact ?? 0));
-  const topId = clues.length && (clues[0].impact ?? 0) > 0.02 ? clues[0].id : null;
+  const byModel = clues.filter(c => !matchFor[c.id]).sort((x, y) => (y.impact ?? 0) - (x.impact ?? 0))[0];
+  const topId = byModel && (byModel.impact ?? 0) > 0.02 ? byModel.id : null;
   drawBoxes(a, topId);
 
   $("clues").innerHTML = clues.length ? "" : "<li class='muted'>No visual clues detected.</li>";
@@ -219,9 +231,13 @@ function render(a) {
         : "The vision model barely relies on it.";
       bar = `<div class="impact"><div style="width:${Math.round(c.impact / maxImpact * 100)}%"></div></div><small>${msg}</small>`;
     }
+    const m = matchFor[c.id];
+    const tags = (m ? '<span class="tag blue">found on map</span>' : "")
+      + (c.id === topId ? '<span class="tag">model leans on it</span>' : "");
+    const reason = m ? `Search found it: ${esc(m.name)}` : esc(c.reason);
     li.innerHTML = `<input type="checkbox" checked data-id="${c.id}">
-      <div><b>${clueName(c)}</b>${c.id === topId ? '<span class="tag">gave it away</span>' : ""}
-      <span class="muted">${Math.round(c.score * 100)}%</span><small>${esc(c.reason)}</small>${bar}</div>`;
+      <div><b>${clueName(c)}</b>${tags}
+      <span class="muted">${Math.round(c.score * 100)}%</span><small>${reason}</small>${m ? "" : bar}</div>`;
     li.querySelector("input").onchange = (e) => toggleBox(c.id, e.target.checked);
     $("clues").appendChild(li);
   });
@@ -300,9 +316,14 @@ function drawMap(points, gps, matches = []) {
       .bindTooltip(`Guess ${i + 1}: ${Math.round(p.prob * 100)}%`).addTo(map)));
   matches.forEach(m => markers.push(
     L.circleMarker([m.lat, m.lon], { radius: 9, color: "#58a6ff", fillOpacity: .8 })
-      .bindTooltip(`Sign text “${m.text}”: ${m.name}`).addTo(map)));
+      .bindTooltip(`Sign text “${m.text}”: ${m.name.split(",").slice(0, 3).join(",")}`).addTo(map)));
   if (gps) markers.push(L.marker([gps.lat, gps.lon]).bindTooltip("Exact GPS from metadata").addTo(map));
-  if (markers.length) map.fitBounds(L.featureGroup(markers).getBounds().pad(0.6), { maxZoom: 8 });
+  if (matches.length) {
+    map.setView([matches[0].lat, matches[0].lon], 16);  // the exact building
+    markers[points.length]?.openTooltip?.();
+  } else if (markers.length) {
+    map.fitBounds(L.featureGroup(markers).getBounds().pad(0.6), { maxZoom: 8 });
+  }
   setTimeout(() => map.invalidateSize(), 50);
 }
 

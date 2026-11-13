@@ -99,7 +99,7 @@ def test_lookup_uses_region_hint_then_falls_back(monkeypatch):
     monkeypatch.setattr(config, "MOCK_MODE", False)
     calls = []
 
-    def fake_search(q):
+    def fake_search(q, countrycodes=""):
         calls.append(q)
         return (("Paramount Theater, East Main Street, Charlottesville, Virginia", 38.03, -78.48, "theatre"),) \
             if q == "PARAMOUNT, Virginia" else ()
@@ -124,8 +124,47 @@ def test_lookup_respects_query_budget(monkeypatch):
     monkeypatch.setattr(config, "MOCK_MODE", False)
     monkeypatch.setattr(config, "LOOKUP_MAX_QUERIES", 3)
     calls = []
-    monkeypatch.setattr(lookup_mod, "_search", lambda q: calls.append(q) or ())
+    monkeypatch.setattr(lookup_mod, "_search", lambda q, countrycodes="": calls.append(q) or ())
     clues = [Clue(id=f"t{i}", kind="text", category="text:name", label=f"NAME{i}", score=0.9,
                   box=[0, 0, 1, 1], reason="r", weight=2.5) for i in range(5)]
     geo = Geolocation(region=[GuessLabel(name="Ohio", prob=0.5)])
     assert lookup_mod.lookup(clues, geo) == [] and len(calls) == 3
+
+
+def test_lookup_prefers_the_match_nearest_the_model_pin(monkeypatch):
+    from app import config
+    from app.schemas import GuessPoint
+
+    monkeypatch.setattr(config, "MOCK_MODE", False)
+    hits = (("Paramount Drive, Virginia Beach", 36.85, -75.98, "road"),
+            ("The Paramount Theater, Charlottesville", 38.03, -78.48, "theatre"))
+    monkeypatch.setattr(lookup_mod, "_search", lambda q, countrycodes="": hits)
+    geo = Geolocation(country=[GuessLabel(name="United States", prob=0.9)],
+                      region=[GuessLabel(name="Virginia", prob=0.4)],
+                      points=[GuessPoint(lat=37.9, lon=-78.9, prob=0.1)])
+    clue = Clue(id="t", kind="text", category="text:name", label="PARAMOUNT", score=0.86,
+                box=[0, 0, 1, 1], reason="r", weight=2.5)
+    assert "Charlottesville" in lookup_mod.lookup([clue], geo)[0].name
+
+
+def test_query_cleanup():
+    from app.pipeline.text_intel import clean_query
+
+    assert clean_query("CONGRATULATIONS UVA MED_SCHOOL CLASS OF 2024") == "UVA MED SCHOOL"
+
+
+def test_vertical_sign_unstacks_into_a_row():
+    pytest.importorskip("scipy")
+    from PIL import Image, ImageDraw
+
+    from app.pipeline.vertical import is_tall, letter_rows, unstack
+
+    col = Image.new("RGB", (60, 9 * 40), (150, 30, 30))  # red sign face
+    d = ImageDraw.Draw(col)
+    for i in range(9):
+        d.rectangle([20, i * 40 + 8, 40, i * 40 + 32], fill=(240, 230, 200))  # cream "letters"
+        d.ellipse([2, i * 40 + 15, 8, i * 40 + 21], fill=(250, 200, 60))  # border bulbs
+    assert is_tall([0, 0, 60, 360])
+    assert len(letter_rows(col)) == 9
+    row, n = unstack(col)
+    assert n == 9 and row.width > row.height * 3

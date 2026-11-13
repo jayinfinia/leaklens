@@ -4,6 +4,7 @@ python-multipart>=0.0.9
 pillow>=10.0
 pillow-heif>=0.16
 numpy>=1.26
+scipy>=1.11
 torch>=2.2
 torchvision>=0.17
 transformers>=4.45  # tested on 4.46 and 5.x

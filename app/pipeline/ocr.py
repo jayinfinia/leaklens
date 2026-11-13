@@ -4,7 +4,8 @@ EasyOCR returns single words and even single letters. Investigators read
 whole signs, so we:
   1. stitch vertically stacked letters (P-A-R-A-M-O-U-N-T) into words,
   2. merge nearby words on the same sign into one clue,
-  3. weight each sign by what its text reveals (see text_intel).
+  3. unstack tall vertical signs and read them as a row (see vertical),
+  4. weight each sign by what its text reveals (see text_intel).
 """
 
 import re
@@ -114,10 +115,15 @@ def merge_lines(items: list[_Item]) -> list[_Item]:
     return merged
 
 
+def normalize(text: str) -> str:
+    """OCR often reads spaces as underscores ("MED_SCHOOL")."""
+    return " ".join(text.replace("_", " ").replace("|", " ").split())
+
+
 def to_clues(items: list[_Item]) -> list[Clue]:
     clues = []
     for k, it in enumerate(sorted(items, key=lambda i: (i.box[1], i.box[0]))):
-        text = " ".join(it.text.split())
+        text = normalize(it.text)
         if not _MEANINGFUL.search(text):
             continue
         intel = classify(text)
@@ -129,16 +135,50 @@ def to_clues(items: list[_Item]) -> list[Clue]:
     return clues
 
 
-def find_text(image) -> list[Clue]:
+def _overlaps(a, b, thresh=0.5) -> bool:
+    x0, y0 = max(a[0], b[0]), max(a[1], b[1])
+    x1, y1 = min(a[2], b[2]), min(a[3], b[3])
+    inter = max(0.0, x1 - x0) * max(0.0, y1 - y0)
+    area = (a[2] - a[0]) * (a[3] - a[1])
+    return area > 0 and inter / area >= thresh
+
+
+def find_text(image, extra_boxes: list[list[float]] | None = None) -> list[Clue]:
+    """`extra_boxes`: tall detector boxes (same coordinates as `image`) to try
+    as vertical signs even if OCR's own detector skipped them."""
     if config.MOCK_MODE:
         return mock.text(image)
 
     import numpy as np
 
     from ..models import ocr
+    from .vertical import is_tall, read_vertical
 
-    raw = ocr().readtext(np.array(image.convert("RGB")))
-    items = []
+    reader = ocr()
+    raw = reader.readtext(np.array(image.convert("RGB")))
+
+    # Tall boxes are usually stacked letters read as nonsense: re-read them.
+    vertical: list[_Item] = []
+    tall_boxes = []
+    for points, _, _ in raw:
+        xs = [float(p[0]) for p in points]
+        ys = [float(p[1]) for p in points]
+        box = [min(xs), min(ys), max(xs), max(ys)]
+        if is_tall(box):
+            tall_boxes.append(box)
+    for box in extra_boxes or []:
+        if is_tall(box) and not any(_overlaps(box, t) or _overlaps(t, box) for t in tall_boxes):
+            tall_boxes.append(box)
+    for box in tall_boxes:
+        try:
+            hit = read_vertical(reader, image, box)
+        except Exception as exc:  # never let one odd sign break the analysis
+            print(f"[leaklens] vertical read failed: {exc}")
+            hit = None
+        if hit and hit[1] >= 0.4:
+            vertical.append(_Item(box, hit[0], hit[1]))
+
+    items = list(vertical)
     for points, text, conf in raw:
         single = len(text.strip()) == 1
         # stacked marquee letters read with low confidence one at a time;
@@ -147,5 +187,10 @@ def find_text(image) -> list[Clue]:
             continue
         xs = [float(p[0]) for p in points]
         ys = [float(p[1]) for p in points]
-        items.append(_Item([min(xs), min(ys), max(xs), max(ys)], text, float(conf)))
-    return to_clues(merge_lines(stack_vertical_letters(items)))
+        box = [min(xs), min(ys), max(xs), max(ys)]
+        if any(_overlaps(box, v.box) for v in vertical):
+            continue  # replaced by the unstacked reading
+        items.append(_Item(box, text, float(conf)))
+    # vertical signs stay separate: merging would glue them to nearby text
+    rest = merge_lines(stack_vertical_letters([i for i in items if i not in vertical]))
+    return to_clues(vertical + rest)

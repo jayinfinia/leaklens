@@ -76,8 +76,15 @@ def _words(text: str) -> list[str]:
     return re.findall(r"[a-z0-9']+", text.lower())
 
 
+def clean_query(text: str) -> str:
+    """Drop words that only add noise to a search ("CONGRATULATIONS", "2024")."""
+    kept = [w for w in re.findall(r"[A-Za-z0-9&'.-]+", text.replace("_", " "))
+            if w.lower().strip(".'") not in GENERIC and not YEAR.match(w)]
+    return " ".join(kept)
+
+
 def classify(text: str) -> TextIntel:
-    t = " ".join(text.split())
+    t = " ".join(text.replace("_", " ").split())
     low = t.lower()
     words = _words(t)
     joined = " ".join(words)

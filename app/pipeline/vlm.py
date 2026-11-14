@@ -191,6 +191,33 @@ def to_reading(data: dict, model: str, ms: int) -> AIReading:
                      features=sorted(set(feats)), guesses=guesses)
 
 
+def _answer_text(resp: dict) -> str:
+    """Thinking models on Ollama (qwen3-vl among them) sometimes leave
+    message.content empty and put the whole answer in message.thinking."""
+    msg = resp.get("message") or {}
+    content = (msg.get("content") or "").strip()
+    if "<think>" in content:  # some builds inline the trace
+        content = content.split("</think>")[-1].strip()
+    if content and content not in ("{}", "[]"):
+        return content
+    return (msg.get("thinking") or content or "").strip()
+
+
+def _useful(data: dict) -> bool:
+    return bool(data.get("sign_texts") or data.get("guesses") or data.get("clues"))
+
+
+# Attempts, most to least constrained. Public reports show each can fail on
+# some Ollama/model versions: schema output landing in `thinking`, `format`
+# ignored when thinking is off, empty content with think=false. We never send
+# think=false; we read both fields and fall back step by step.
+ATTEMPTS = [
+    ("schema", lambda: SCHEMA),
+    ("json", lambda: "json"),
+    ("free", lambda: None),
+]
+
+
 def ask(image) -> AIReading | None:
     if config.MOCK_MODE:
         from . import mock
@@ -206,30 +233,47 @@ def ask(image) -> AIReading | None:
     st = status()
     if not st.get("ok"):
         return AIReading(model=config.VLM_MODEL, ms=0, error=st.get("reason", "unavailable"))
+    model = st.get("model", config.VLM_MODEL)
+    image_b64 = _encode(image, config.VLM_MAX_SIDE)
     t0 = time.monotonic()
-    payload = {
-        "model": st.get("model", config.VLM_MODEL),
-        "messages": [{"role": "user", "content": PROMPT, "images": [_encode(image, config.VLM_MAX_SIDE)]}],
-        "format": SCHEMA,
-        "stream": False,
-        "keep_alive": "15m",
-        "options": {"temperature": 0, "num_ctx": config.VLM_NUM_CTX, "num_predict": 1500},
-    }
-    try:
-        resp = _http("/api/chat", payload, timeout=config.VLM_TIMEOUT)
-        if resp.get("done_reason") == "length":
-            print("[leaklens] AI answer hit the length limit; using the part that arrived")
-        data = _parse(resp.get("message", {}).get("content", ""))
-    except Exception as exc:
-        print(f"[leaklens] AI model call failed: {exc}")
-        return AIReading(model=payload["model"], ms=int(1000 * (time.monotonic() - t0)),
-                         error=f"model call failed: {exc}")
-    reading = to_reading(data, payload["model"], int(1000 * (time.monotonic() - t0)))
-    print(f"[leaklens] AI model: {len(reading.sign_texts)} signs, {len(reading.guesses)} guesses, "
-          f"{reading.ms / 1000:.1f}s; top guess: {reading.guesses[0].place if reading.guesses else 'none'}")
-    if not reading.sign_texts and not reading.guesses:
-        reading.error = "the model answered but returned nothing usable (raw: " + json.dumps(data)[:200] + ")"
-    return reading
+    problems = []
+    for name, fmt in ATTEMPTS:
+        prompt = PROMPT if name != "free" else PROMPT + "\nReturn a single JSON object with keys " \
+            '"sign_texts", "clues", "features", "guesses". No other text.'
+        payload = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt, "images": [image_b64]}],
+            "stream": False,
+            "keep_alive": "15m",
+            "options": {"temperature": 0, "num_ctx": config.VLM_NUM_CTX, "num_predict": 2048},
+        }
+        if fmt() is not None:
+            payload["format"] = fmt()
+        try:
+            resp = _http("/api/chat", payload, timeout=config.VLM_TIMEOUT)
+        except Exception as exc:
+            problems.append(f"{name}: {exc}")
+            print(f"[leaklens] AI attempt '{name}' failed: {exc}")
+            if "timed out" in str(exc).lower():
+                break  # a timeout will just repeat; don't triple the wait
+            continue
+        text = _answer_text(resp)
+        try:
+            data = _parse(text)
+        except Exception as exc:
+            data = {}
+            problems.append(f"{name}: unparseable ({exc})")
+        if _useful(data):
+            reading = to_reading(data, model, int(1000 * (time.monotonic() - t0)))
+            print(f"[leaklens] AI model ({name} mode): {len(reading.sign_texts)} signs, "
+                  f"{len(reading.guesses)} guesses, {reading.ms / 1000:.1f}s; top guess: "
+                  f"{reading.guesses[0].place if reading.guesses else 'none'}")
+            return reading
+        where = "thinking" if not (resp.get("message") or {}).get("content", "").strip() else "content"
+        problems.append(f"{name}: empty answer (looked in {where}; done_reason={resp.get('done_reason')})")
+        print(f"[leaklens] AI attempt '{name}' gave nothing usable; trying the next mode")
+    return AIReading(model=model, ms=int(1000 * (time.monotonic() - t0)),
+                     error="no usable answer after 3 attempts: " + "; ".join(problems)[:400])
 
 
 # ------------------------------------------------------------ merge readings

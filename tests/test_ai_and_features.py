@@ -86,7 +86,7 @@ def test_ask_reports_errors_instead_of_crashing(real_mode, monkeypatch):
 
     monkeypatch.setattr(vlm, "_http", fake)
     r = vlm.ask(Image.new("RGB", (100, 100)))
-    assert r.error.startswith("model call failed")
+    assert r.error.startswith("no usable answer") and "timed out" in r.error
 
 
 # ----------------------------------------------------------- merging readings
@@ -274,4 +274,4 @@ def test_ask_requests_a_large_context(real_mode, monkeypatch):
     monkeypatch.setattr(vlm, "_http", fake)
     r = vlm.ask(Image.new("RGB", (100, 100)))
     assert sent["options"]["num_ctx"] >= 8192
-    assert "nothing usable" in r.error
+    assert "empty answer" in r.error

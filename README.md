@@ -60,7 +60,7 @@ The suite runs in mock mode, so CI never downloads weights. If torch and transfo
 ollama pull qwen3-vl:8b      # ~6 GB; use qwen3-vl:4b on smaller machines (set LEAKLENS_VLM_MODEL)
 ```
 
-LeakLens detects Ollama automatically (header shows "AI: qwen3-vl:8b"); toggle it per photo in the UI. The photo stays on your machine. Expect 10 to 60 seconds per photo on a laptop.
+Check it on one photo with `python scripts/ai_check.py photo.jpg` (shows where the model's answer landed and what was parsed). LeakLens detects Ollama automatically (header shows "AI: qwen3-vl:8b"); toggle it per photo in the UI. The photo stays on your machine. Expect 10 to 60 seconds per photo on a laptop.
 
 ## Roadmap
 
@@ -167,6 +167,7 @@ This project builds on the following work. Thank you to the authors.
 **Research and tools**
 - Bellingcat. *OpenStreetMap Search* ([code](https://github.com/bellingcat/osm-search), MIT). The object proximity search follows its approach of finding places where several features sit close together.
 - Qwen team. *Qwen3-VL* (Apache-2.0), run through [Ollama](https://ollama.com).
+- Ollama structured-output and thinking-model behavior, and the content-or-thinking fallback, follow fixes in public projects (e.g. datalab-to/marker's Ollama service for qwen3-vl).
 - Wang et al. *GeoVista*. Agentic zoom-and-search geolocation on Qwen2.5-VL, which inspired using a small open model as the attacker.
 
 - **PIGEON**: Haas, Skreta, Alberti, Finn. *PIGEON: Predicting Image Geolocations* (CVPR 2024). [Code](https://github.com/LukasHaas/PIGEON).

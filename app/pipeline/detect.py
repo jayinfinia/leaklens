@@ -35,12 +35,24 @@ def _nms(clues: list[Clue], iou_thresh: float = 0.5, contain_thresh: float = 0.8
         if all(_iou(c.box, k.box) < iou_thresh and _containment(c.box, k.box) < contain_thresh
                for k in kept):
             kept.append(c)
-    return kept[: config.MAX_OBJECT_CLUES]
+    return kept
 
 
 def detect_clues(image) -> list[Clue]:
+    return detect_with_candidates(image)[0]
+
+
+def detect_with_candidates(image) -> tuple[list[Clue], list[list[float]]]:
+    """Returns (clues, OCR candidate boxes).
+
+    Clues are boxes the detector is reasonably sure of (DETECT_THRESHOLD).
+    Candidates also include weaker boxes (CROP_THRESHOLD): too unsure to show
+    as clues, but worth a zoomed OCR read, since a faint "sign" box often
+    holds the most revealing text in the photo.
+    """
     if config.MOCK_MODE:
-        return mock.clues(image)
+        clues = mock.clues(image)
+        return clues, [c.box for c in clues]
 
     import torch
 
@@ -62,7 +74,8 @@ def detect_clues(image) -> list[Clue]:
     target = torch.tensor([[side, side]], device=device())
     post = getattr(processor, "post_process_object_detection", None) or \
         processor.image_processor.post_process_object_detection
-    result = post(outputs=outputs, threshold=config.DETECT_THRESHOLD, target_sizes=target)[0]
+    low = min(config.DETECT_THRESHOLD, config.CROP_THRESHOLD)
+    result = post(outputs=outputs, threshold=low, target_sizes=target)[0]
 
     w, h = image.size
     clues = []
@@ -81,5 +94,8 @@ def detect_clues(image) -> list[Clue]:
             score=round(score, 3), box=[x0, y0, x1, y1],
             reason=spec["reason"], weight=spec["weight"],
         ))
-    return _nms(clues)
+    kept = _nms(clues)
+    strong = [c for c in kept if c.score >= config.DETECT_THRESHOLD][: config.MAX_OBJECT_CLUES]
+    candidates = [c.box for c in kept][: config.MAX_OBJECT_CLUES + config.OCR_MAX_CROPS]
+    return strong, candidates
 

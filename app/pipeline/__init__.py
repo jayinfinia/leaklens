@@ -8,7 +8,7 @@ from PIL import Image, ImageOps
 from .. import config
 from ..schemas import Analysis, Clue
 from .attribution import attribute
-from .detect import detect_clues
+from .detect import detect_with_candidates
 from .exif import read_exif
 from .geolocate import geolocate
 from .lookup import lookup as text_lookup
@@ -71,12 +71,12 @@ def analyze(raw: Image.Image, upright: Image.Image, explain: bool = True,
 
         embeds = _image_embeds([work])
 
-    objects = detect_clues(work)
+    objects, candidates = detect_with_candidates(work)
     # OCR gets a sharper copy than the vision models: small sign text matters.
     # Detector boxes get a second, zoomed OCR pass (tall ones as vertical signs).
     ocr_img, ocr_factor = downscale(upright, config.OCR_MAX_SIDE)
     to_ocr = ocr_factor / factor
-    sign_boxes = [[v * to_ocr for v in c.box] for c in objects]
+    sign_boxes = [[v * to_ocr for v in b] for b in candidates]
     text = rescale(find_text(ocr_img, sign_boxes), to_ocr)  # -> `work` coordinates
 
     clues = objects + text

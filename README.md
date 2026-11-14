@@ -76,7 +76,8 @@ All settings live in `app/config.py` and can be overridden with environment vari
 | `LEAKLENS_TEXT_LOOKUP` | `0` | Default for the OpenStreetMap sign-text lookup (the UI has a toggle) |
 | `LEAKLENS_OCR_MAX_SIDE` | `2048` | OCR reads a sharper copy than the vision models |
 | `LEAKLENS_OCR_ENGINE` | `auto` | `auto` (Apple Vision + EasyOCR together on macOS, EasyOCR elsewhere), `both`, `apple` or `easyocr`. Debug with `python scripts/ocr_debug.py photo.jpg` |
-| `LEAKLENS_OCR_MAX_CROPS` | `8` | Detected signs re-read as zoomed crops |
+| `LEAKLENS_OCR_MAX_CROPS` | `12` | Detected signs re-read as zoomed crops |
+| `LEAKLENS_CROP_THRESHOLD` | `0.15` | Weaker detector boxes still get a zoomed OCR read (not shown as clues) |
 | `LEAKLENS_USE_GEOCLIP` | `1` | Turn off map pins if GeoCLIP is slow |
 | `LEAKLENS_MAX_SIDE` | `1280` | Longest side used for analysis |
 | `LEAKLENS_ATTRIBUTION` | `1` | Per-clue "which clue gave it away" test |

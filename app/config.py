@@ -23,10 +23,12 @@ USE_GEOCLIP = os.getenv("LEAKLENS_USE_GEOCLIP", "1") == "1"
 
 DETECT_THRESHOLD = float(os.getenv("LEAKLENS_DETECT_THRESHOLD", "0.3"))
 MAX_OBJECT_CLUES = int(os.getenv("LEAKLENS_MAX_OBJECT_CLUES", "12"))
+# weaker boxes still get a zoomed OCR read (not shown as clues)
+CROP_THRESHOLD = float(os.getenv("LEAKLENS_CROP_THRESHOLD", "0.15"))
 OCR_LANGS = ["en"]
 OCR_ENGINE = os.getenv("LEAKLENS_OCR_ENGINE", "auto")  # auto | apple | easyocr
 OCR_APPLE_LANGS = ["en-US"]
-OCR_MAX_CROPS = int(os.getenv("LEAKLENS_OCR_MAX_CROPS", "8"))
+OCR_MAX_CROPS = int(os.getenv("LEAKLENS_OCR_MAX_CROPS", "12"))
 OCR_CROP_MAX_AREA = 0.25  # skip crops bigger than this share of the image
 OCR_MAX_SIDE = int(os.getenv("LEAKLENS_OCR_MAX_SIDE", "2048"))
 OCR_MIN_CONF = float(os.getenv("LEAKLENS_OCR_MIN_CONF", "0.4"))

@@ -7,7 +7,9 @@ Apple Vision (macOS) is the default when available: it is the engine
 behind Live Text, runs locally, and reads stylized signage far better than
 EasyOCR. EasyOCR is the cross-platform fallback.
 
-LEAKLENS_OCR_ENGINE = auto | apple | easyocr
+LEAKLENS_OCR_ENGINE = auto | both | apple | easyocr
+  auto: both on macOS (Apple Vision + EasyOCR, fuller reading wins), else EasyOCR.
+  Each engine misses different signs, so on a Mac we use both.
 """
 
 import io
@@ -20,6 +22,10 @@ from .. import config
 class EasyOCREngine:
     name = "easyocr"
     min_conf = 0.4
+
+    @property
+    def crop_engine(self):
+        return self
 
     def __init__(self):
         from ..models import ocr
@@ -45,7 +51,13 @@ class AppleVisionEngine:
     """macOS Vision framework via pyobjc (pip install pyobjc-framework-Vision)."""
 
     name = "apple"
-    min_conf = 0.3  # Vision reports coarse confidences (0.3 / 0.5 / 1.0)
+    # Vision reports coarse confidences (about 0.3 / 0.5 / 1.0, as floats that
+    # can land just under 0.3), so the cutoff sits below the lowest step.
+    min_conf = 0.25
+
+    @property
+    def crop_engine(self):
+        return self
 
     def __init__(self):
         import Vision  # noqa: F401  (fails fast off macOS)
@@ -94,14 +106,68 @@ class AppleVisionEngine:
         return " ".join(t for _, t, _ in res), min(c for _, _, c in res)
 
 
+class CombinedEngine:
+    """Run several engines and pool their readings.
+
+    Results are pre-filtered with each engine's own confidence cutoff, so
+    `min_conf` here is 0. Overlapping readings are resolved later by
+    ocr.dedupe (the fuller reading wins). Zoomed crops use only the first
+    engine, which keeps the second look fast.
+    """
+
+    min_conf = 0.0
+
+    def __init__(self, engines):
+        self.engines = engines
+        self.name = "+".join(e.name for e in engines)
+
+    @property
+    def crop_engine(self):
+        return self.engines[0]
+
+    def readtext(self, image):
+        out = []
+        for e in self.engines:
+            try:
+                out += [r for r in e.readtext(image) if r[2] >= e.min_conf or len(r[1].strip()) == 1]
+            except Exception as exc:
+                print(f"[leaklens] {e.name} OCR failed: {exc}")
+        return out
+
+    def recognize_row(self, image):
+        best = None
+        for e in self.engines:
+            try:
+                res = e.recognize_row(image)
+            except Exception:
+                res = None
+            if res and (best is None or res[1] > best[1]):
+                best = res
+        return best
+
+
+def _apple_or_none(required: bool):
+    if sys.platform != "darwin":
+        if required:
+            raise RuntimeError("Apple Vision OCR needs macOS")
+        return None
+    try:
+        return AppleVisionEngine()
+    except Exception as exc:
+        if required:
+            raise
+        print(f"[leaklens] Apple Vision OCR unavailable ({exc}); using EasyOCR")
+        return None
+
+
 @lru_cache(maxsize=1)
 def get_engine():
     choice = config.OCR_ENGINE
-    if choice in ("auto", "apple") and sys.platform == "darwin":
-        try:
-            return AppleVisionEngine()
-        except Exception as exc:
-            if choice == "apple":
-                raise
-            print(f"[leaklens] Apple Vision OCR unavailable ({exc}); using EasyOCR")
-    return EasyOCREngine()
+    if choice == "easyocr":
+        return EasyOCREngine()
+    apple = _apple_or_none(required=choice == "apple")
+    if choice == "apple":
+        return apple
+    if apple is None:
+        return EasyOCREngine()
+    return CombinedEngine([apple, EasyOCREngine()])

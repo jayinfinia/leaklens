@@ -62,7 +62,35 @@ GENERIC = {
     "hour", "special", "specials", "thank", "you", "for", "to", "in", "on", "at", "a",
     "an", "is", "we", "are", "our", "your", "with", "danger", "caution", "warning",
     "pedestrian", "crossing", "slow", "yield", "speed", "limit", "mph", "do", "not",
+    "telephone", "phone", "taxi", "bus", "restrooms", "restroom", "atm", "toilets",
+    "information", "parking", "garage", "fire", "hydrant", "loading", "zone", "towing",
+    "tow", "away", "private", "property", "keep", "clear", "emergency", "shop", "shoppe",
 }
+
+
+def _near(a: str, b: str) -> bool:
+    """Within one edit: OCR slips like TELEPHONM for TELEPHONE."""
+    if abs(len(a) - len(b)) > 1:
+        return False
+    if len(a) == len(b):
+        return sum(x != y for x, y in zip(a, b)) <= 1
+    if len(a) > len(b):
+        a, b = b, a
+    i = j = diff = 0
+    while i < len(a) and j < len(b):
+        if a[i] == b[j]:
+            i += 1
+        else:
+            diff += 1
+            if diff > 1:
+                return False
+        j += 1
+    return True
+
+
+def is_generic(word: str) -> bool:
+    w = word.lower()
+    return w in GENERIC or (len(w) >= 6 and any(len(g) >= 6 and _near(w, g) for g in GENERIC))
 
 
 @dataclass
@@ -79,7 +107,7 @@ def _words(text: str) -> list[str]:
 def clean_query(text: str) -> str:
     """Drop words that only add noise to a search ("CONGRATULATIONS", "2024")."""
     kept = [w for w in re.findall(r"[A-Za-z0-9&'.-]+", text.replace("_", " "))
-            if w.lower().strip(".'") not in GENERIC and not YEAR.match(w)]
+            if not is_generic(w.strip(".'")) and not YEAR.match(w)]
     return " ".join(kept)
 
 
@@ -104,7 +132,7 @@ def classify(text: str) -> TextIntel:
     if ZIP.search(t):
         return TextIntel("zip", 3.5, "ZIP code: pins the photo to a neighborhood.")
 
-    meaningful = [w for w in words if w not in GENERIC and not YEAR.match(w)]
+    meaningful = [w for w in words if not is_generic(w) and not YEAR.match(w)]
     if not meaningful:
         return TextIntel("generic", 0.4, "Generic text; reveals little on its own.")
     if all(w.isdigit() for w in meaningful):

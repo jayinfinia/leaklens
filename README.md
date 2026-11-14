@@ -75,7 +75,7 @@ All settings live in `app/config.py` and can be overridden with environment vari
 | `LEAKLENS_DETECT_THRESHOLD` | `0.3` | OWLv2 confidence cutoff |
 | `LEAKLENS_TEXT_LOOKUP` | `0` | Default for the OpenStreetMap sign-text lookup (the UI has a toggle) |
 | `LEAKLENS_OCR_MAX_SIDE` | `2048` | OCR reads a sharper copy than the vision models |
-| `LEAKLENS_OCR_ENGINE` | `auto` | `apple` (macOS Vision), `easyocr`, or `auto` (Apple when available) |
+| `LEAKLENS_OCR_ENGINE` | `auto` | `auto` (Apple Vision + EasyOCR together on macOS, EasyOCR elsewhere), `both`, `apple` or `easyocr`. Debug with `python scripts/ocr_debug.py photo.jpg` |
 | `LEAKLENS_OCR_MAX_CROPS` | `8` | Detected signs re-read as zoomed crops |
 | `LEAKLENS_USE_GEOCLIP` | `1` | Turn off map pins if GeoCLIP is slow |
 | `LEAKLENS_MAX_SIDE` | `1280` | Longest side used for analysis |

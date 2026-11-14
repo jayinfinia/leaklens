@@ -235,7 +235,7 @@ def find_text(image, extra_boxes: list[list[float]] | None = None) -> list[Clue]
              and (b[2] - b[0]) * (b[3] - b[1]) < config.OCR_CROP_MAX_AREA * area]
     for box in crops[: config.OCR_MAX_CROPS]:
         try:
-            items += [i for i in read_crop(engine, image, box)
+            items += [i for i in read_crop(engine.crop_engine, image, box)
                       if not any(_overlaps(i.box, v.box) for v in vertical)]
         except Exception as exc:
             print(f"[leaklens] crop read failed: {exc}")

@@ -326,3 +326,27 @@ def test_engine_falls_back_to_easyocr_off_mac(monkeypatch):
         assert ocr_engines.get_engine().name == "easyocr"
     finally:
         ocr_engines.get_engine.cache_clear()
+
+
+def test_ocr_slips_of_generic_words_stay_generic():
+    assert classify("TELEPHONM").kind == "generic"
+    assert classify("TELEPHONE").kind == "generic"
+    assert classify("PARLIAMENT").kind == "name"
+
+
+def test_combined_engine_pools_readings_with_each_cutoff():
+    from app.pipeline.ocr_engines import CombinedEngine
+
+    class E:
+        def __init__(self, name, cutoff, rows):
+            self.name, self.min_conf, self.rows = name, cutoff, rows
+
+        def readtext(self, image):
+            return self.rows
+
+    a = E("apple", 0.25, [([[0, 0], [9, 0], [9, 9], [0, 9]], "POPPY & PARLIAMENT", 0.3),
+                          ([[0, 0], [9, 0], [9, 9], [0, 9]], "junk", 0.1)])
+    b = E("easyocr", 0.4, [([[0, 0], [9, 0], [9, 9], [0, 9]], "POPPY", 0.49),
+                           ([[0, 0], [9, 0], [9, 9], [0, 9]], "lidly", 0.2)])
+    texts = [r[1] for r in CombinedEngine([a, b]).readtext(None)]
+    assert texts == ["POPPY & PARLIAMENT", "POPPY"]

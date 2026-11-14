@@ -24,7 +24,7 @@ CLUE_SCALE = 0.5 / 3.0  # weight 3 at full confidence -> 0.5
 IMPACT_SCALE = 1.5  # a clue that cuts the top guess by 10 pts adds 0.15
 GPS_LEAK = 1.0
 MATCH_LEAK = 0.85
-WEAK_MATCH_LEAK = 0.25
+WEAK_MATCH_LEAK = 0.12  # a possible match is a hint, not evidence
 
 
 def level_for(value: int) -> str:

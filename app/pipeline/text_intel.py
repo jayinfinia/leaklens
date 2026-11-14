@@ -88,6 +88,17 @@ def _near(a: str, b: str) -> bool:
     return True
 
 
+GARBLED = re.compile(r"^[a-z]{2,}([A-Z]+[a-z]|[A-Z]{2,}$)")  # "choRe", "shOPPE": case flips mid-word
+
+
+def looks_garbled(text: str) -> bool:
+    """OCR misreads often mix case oddly. Real names rarely start with two
+    lowercase letters and then switch to capitals (eBay, iPhone, McDonald
+    are fine)."""
+    words = re.findall(r"[A-Za-z]+", text)
+    return any(GARBLED.match(w) for w in words) and len(words) <= 2
+
+
 def is_generic(word: str) -> bool:
     w = word.lower()
     return w in GENERIC or (len(w) >= 6 and any(len(g) >= 6 and _near(w, g) for g in GENERIC))
@@ -131,6 +142,9 @@ def classify(text: str) -> TextIntel:
         return TextIntel("institution", 3.0, "Names an institution or public place you can look up.")
     if ZIP.search(t):
         return TextIntel("zip", 3.5, "ZIP code: pins the photo to a neighborhood.")
+
+    if looks_garbled(t):
+        return TextIntel("garbled", 0.3, "Unclear reading; probably an OCR error.")
 
     meaningful = [w for w in words if not is_generic(w) and not YEAR.match(w)]
     if not meaningful:

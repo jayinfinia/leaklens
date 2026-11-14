@@ -350,3 +350,35 @@ def test_combined_engine_pools_readings_with_each_cutoff():
                            ([[0, 0], [9, 0], [9, 9], [0, 9]], "lidly", 0.2)])
     texts = [r[1] for r in CombinedEngine([a, b]).readtext(None)]
     assert texts == ["POPPY & PARLIAMENT", "POPPY"]
+
+
+@pytest.mark.parametrize("text,garbled", [
+    ("choRe", True), ("shOPPE", True), ("eBay", False), ("iPhone", False),
+    ("McDonald's", False), ("POPPY", False), ("Fiore", False),
+])
+def test_garbled_readings(text, garbled):
+    from app.pipeline.text_intel import looks_garbled
+
+    assert looks_garbled(text) is garbled
+
+
+def test_garbled_and_tiny_words_are_never_searched(monkeypatch):
+    from app import config
+
+    monkeypatch.setattr(config, "MOCK_MODE", False)
+    calls = []
+    monkeypatch.setattr(lookup_mod, "_search", lambda q, countrycodes="": calls.append(q) or ())
+    t = classify("choRe")
+    clues = [Clue(id="g", kind="text", category=f"text:{t.kind}", label="choRe", score=1.0,
+                  box=[0, 0, 1, 1], reason="r", weight=t.weight),
+             _text("i", "illy"), _text("p", "POPPY")]
+    lookup_mod.lookup(clues, _geo_dc())
+    assert calls and all("POPPY" in q for q in calls)
+
+
+def test_possible_matches_barely_move_the_score():
+    clue = _text("p", "POPPY", score=0.5)
+    m = TextMatch(clue_id="p", text="POPPY", query="POPPY", name="Poppy, Richmond", lat=37.5, lon=-77.4,
+                  confidence="weak")
+    assert score(ExifReport(), [clue], Geolocation(), matches=[m]).score - \
+        score(ExifReport(), [clue], Geolocation()).score <= 12

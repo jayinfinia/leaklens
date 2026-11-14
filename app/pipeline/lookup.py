@@ -57,8 +57,16 @@ def _search(query: str, countrycodes: str = "") -> tuple:
     return tuple((d["display_name"], float(d["lat"]), float(d["lon"]), d.get("type", "")) for d in data)
 
 
+def _searchable(c: Clue) -> bool:
+    if c.kind != "text" or c.category.split(":")[-1] not in SEARCHABLE:
+        return False
+    words = clean_query(c.label).split()
+    # one short word ("illy", "choR") matches too much by chance
+    return len(words) >= 2 or sum(ch.isalnum() for ch in "".join(words)) >= 5
+
+
 def _candidates(clues: list[Clue]) -> list[Clue]:
-    texts = [c for c in clues if c.kind == "text" and c.category.split(":")[-1] in SEARCHABLE]
+    texts = [c for c in clues if _searchable(c)]
     return sorted(texts, key=lambda c: c.weight * c.score, reverse=True)
 
 
@@ -209,7 +217,7 @@ def corroborate(matches: dict, pools: dict, clues: list[Clue], use_overpass: boo
             continue
         others = [r for r in (term_regex(c.label) for c in clues
                               if c.kind == "text" and c.id != cid
-                              and c.category.split(":")[-1] not in ("generic", "number")) if r]
+                              and c.category.split(":")[-1] not in ("generic", "number", "garbled")) if r]
         if not others:
             continue
         calls += 1

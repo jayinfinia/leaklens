@@ -36,6 +36,7 @@ US_CITIES = {
     "buffalo", "rochester", "albany", "hartford", "providence", "burlington",
     "madison", "des moines", "kansas city", "wichita", "little rock", "jackson",
     "baton rouge", "birmingham", "lexington", "annapolis", "washington dc",
+    "cville", "nola", "philly", "atl", "chi-town", "big apple",
 }
 
 INSTITUTIONS = re.compile(

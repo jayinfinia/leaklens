@@ -42,12 +42,12 @@ Step 2, reasoning:
 - guesses: up to 3 candidate places, most likely first, as "City, State/Region, Country", each with a
   confidence from 0 to 1 and a one-sentence reason that cites the clues. Use lower confidence when unsure.
 
-Answer with JSON only."""
+Keep it short: at most 8 sign_texts, 6 clues and 3 guesses, one sentence each. Answer with JSON only."""
 
 SCHEMA = {
     "type": "object",
     "properties": {
-        "sign_texts": {"type": "array", "items": {"type": "string"}},
+        "sign_texts": {"type": "array", "items": {"type": "string"}, "maxItems": 8},
         "clues": {"type": "array", "items": {
             "type": "object",
             "properties": {"clue": {"type": "string"}, "suggests": {"type": "string"}},
@@ -109,12 +109,64 @@ def _encode(image, max_side: int) -> str:
     return base64.b64encode(buf.getvalue()).decode()
 
 
+def _repair(text: str) -> str:
+    """Close a JSON answer that was cut off mid-way: drop the dangling partial
+    value, then close any open string, arrays and objects."""
+    stack, in_str, esc, last_ok = [], False, False, 0
+    for i, ch in enumerate(text):
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch in "{[":
+            stack.append("}" if ch == "{" else "]")
+        elif ch in "}]":
+            if stack:
+                stack.pop()
+            last_ok = i + 1
+        elif ch == ",":
+            last_ok = i
+    # cut back to the last complete element, then close what is still open
+    cut = text[:last_ok].rstrip().rstrip(",")
+    stack, in_str, esc = [], False, False
+    for ch in cut:
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch in "{[":
+            stack.append("}" if ch == "{" else "]")
+        elif ch in "}]" and stack:
+            stack.pop()
+    return cut + "".join(reversed(stack))
+
+
 def _parse(content: str) -> dict:
     content = content.strip()
-    if not content.startswith("{"):
-        start, end = content.find("{"), content.rfind("}")
-        content = content[start:end + 1] if start >= 0 and end > start else "{}"
-    return json.loads(content)
+    start = content.find("{")
+    if start < 0:
+        return {}
+    content = content[start:]
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError:
+        end = content.rfind("}")
+        try:
+            return json.loads(content[:end + 1])
+        except json.JSONDecodeError:
+            return json.loads(_repair(content))
 
 
 def to_reading(data: dict, model: str, ms: int) -> AIReading:
@@ -161,15 +213,23 @@ def ask(image) -> AIReading | None:
         "format": SCHEMA,
         "stream": False,
         "keep_alive": "15m",
-        "options": {"temperature": 0},
+        "options": {"temperature": 0, "num_ctx": config.VLM_NUM_CTX, "num_predict": 1500},
     }
     try:
         resp = _http("/api/chat", payload, timeout=config.VLM_TIMEOUT)
+        if resp.get("done_reason") == "length":
+            print("[leaklens] AI answer hit the length limit; using the part that arrived")
         data = _parse(resp.get("message", {}).get("content", ""))
     except Exception as exc:
+        print(f"[leaklens] AI model call failed: {exc}")
         return AIReading(model=payload["model"], ms=int(1000 * (time.monotonic() - t0)),
                          error=f"model call failed: {exc}")
-    return to_reading(data, payload["model"], int(1000 * (time.monotonic() - t0)))
+    reading = to_reading(data, payload["model"], int(1000 * (time.monotonic() - t0)))
+    print(f"[leaklens] AI model: {len(reading.sign_texts)} signs, {len(reading.guesses)} guesses, "
+          f"{reading.ms / 1000:.1f}s; top guess: {reading.guesses[0].place if reading.guesses else 'none'}")
+    if not reading.sign_texts and not reading.guesses:
+        reading.error = "the model answered but returned nothing usable (raw: " + json.dumps(data)[:200] + ")"
+    return reading
 
 
 # ------------------------------------------------------------ merge readings

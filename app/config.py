@@ -126,6 +126,8 @@ RISK_HIGH = 60
 VLM_MODE = os.getenv("LEAKLENS_VLM", "auto")  # auto | off
 OLLAMA_URL = os.getenv("LEAKLENS_OLLAMA_URL", "http://localhost:11434")
 VLM_MODEL = os.getenv("LEAKLENS_VLM_MODEL", "qwen3-vl:8b")
-VLM_MAX_SIDE = int(os.getenv("LEAKLENS_VLM_MAX_SIDE", "1280"))
+VLM_MAX_SIDE = int(os.getenv("LEAKLENS_VLM_MAX_SIDE", "1024"))
+# Ollama defaults to a small context; the image alone can fill it and cut the answer off
+VLM_NUM_CTX = int(os.getenv("LEAKLENS_VLM_NUM_CTX", "16384"))
 VLM_TIMEOUT = float(os.getenv("LEAKLENS_VLM_TIMEOUT", "180"))
 AI_AGREE_KM = 40  # a sign-text candidate this close to the AI's guess counts as agreement

@@ -222,6 +222,7 @@ async function start(file) {
   try {
     analysis = await post(withLookup("/api/analyze"), fd);
     if (analysis.preview_b64) $("photo").src = "data:image/jpeg;base64," + analysis.preview_b64;
+    if (analysis.ai && analysis.ai.error) $("error").textContent = "AI model: " + analysis.ai.error;
     render(analysis);
     busy(false);
   } catch (err) {

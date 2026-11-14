@@ -210,3 +210,68 @@ def test_mock_pipeline_includes_ai_reading(monkeypatch):
     assert any(f.source == "ai" for f in a.risk.factors)
     off = analyze(raw, upright, use_ai=False)
     assert off.ai is None and all(c.box is not None for c in off.clues)
+
+
+def test_famous_place_beats_same_named_roads_in_the_hinted_region(real_mode, monkeypatch):
+    hits = (("The Paramount Theater, East Main Street, Charlottesville", 38.0306, -78.4817, "theatre", 0.42),
+            ("Paramount Drive, Scott County, Virginia", 36.7, -82.6, "residential", 0.10),
+            ("Paramount Lane, Fairfax, Virginia", 38.85, -77.3, "residential", 0.10))
+    monkeypatch.setattr(lookup_mod, "_search", lambda q, countrycodes="": hits if "," in q else ())
+    geo = Geolocation(country=[GuessLabel(name="United States", prob=0.9)],
+                      region=[GuessLabel(name="Virginia", prob=0.41)],
+                      points=[__import__("app.schemas", fromlist=["GuessPoint"]).GuessPoint(lat=36.7, lon=-82.5, prob=0.1)])
+    m = lookup_mod.lookup([_text("t0", "PARAMOUNT")], geo)[0]
+    assert m.confidence == "strong" and "Theater" in m.name  # not the road nearest the (wrong) pin
+
+
+def test_no_dominant_result_stays_possible_and_ignores_the_pin(real_mode, monkeypatch):
+    hits = (("Paramount Drive, Scott County, Virginia", 36.7, -82.6, "residential", 0.10),
+            ("Paramount Lane, Fairfax, Virginia", 38.85, -77.3, "residential", 0.10))
+    monkeypatch.setattr(lookup_mod, "_search", lambda q, countrycodes="": hits if "," in q else ())
+    geo = Geolocation(region=[GuessLabel(name="Virginia", prob=0.41)],
+                      points=[__import__("app.schemas", fromlist=["GuessPoint"]).GuessPoint(lat=38.8, lon=-77.3, prob=0.1)])
+    m = lookup_mod.lookup([_text("t0", "PARAMOUNT")], geo)[0]
+    assert m.confidence == "weak" and "Scott County" in m.name  # OSM order, not nearest pin
+
+
+def test_with_an_ai_reading_only_text_the_ai_also_read_is_searched(real_mode, monkeypatch):
+    calls = []
+    monkeypatch.setattr(lookup_mod, "_search", lambda q, countrycodes="": calls.append(q) or ())
+    ai = AIReading(model="m", sign_texts=["PARAMOUNT"])
+    clues = [_text("a", "PARAMOUNT").model_copy(update={"source": "ocr+ai"}), _text("b", "Pa-pints")]
+    lookup_mod.lookup(clues, _geo_dc(), ai)
+    assert calls and all("PARAMOUNT" in q for q in calls)
+
+
+def test_cville_names_a_city():
+    from app.pipeline.text_intel import classify
+
+    assert classify("DOWN TOWN CVILLE").kind == "place"
+
+
+def test_truncated_answers_are_salvaged():
+    cut = ('{"sign_texts": ["POPPY & PARLIAMENT", "TELEPHONE"], "clues": [{"clue": "red phone box", '
+           '"suggests": "British theme"}], "features": ["telephone box"], "guesses": [{"place": '
+           '"Huntsville, Alabama, USA", "confidence": 0.6, "why": "the sign and the phone b')
+    data = vlm._parse(cut)
+    assert data["sign_texts"] == ["POPPY & PARLIAMENT", "TELEPHONE"]
+    assert data["features"] == ["telephone box"]
+    r = vlm.to_reading(data, "m", 1)
+    assert r.sign_texts and not r.error
+
+
+def test_ask_requests_a_large_context(real_mode, monkeypatch):
+    from PIL import Image
+
+    sent = {}
+
+    def fake(path, payload=None, timeout=5):
+        if path == "/api/tags":
+            return {"models": [{"name": config.VLM_MODEL}]}
+        sent.update(payload)
+        return {"message": {"content": '{"sign_texts": [], "clues": [], "features": [], "guesses": []}'}}
+
+    monkeypatch.setattr(vlm, "_http", fake)
+    r = vlm.ask(Image.new("RGB", (100, 100)))
+    assert sent["options"]["num_ctx"] >= 8192
+    assert "nothing usable" in r.error

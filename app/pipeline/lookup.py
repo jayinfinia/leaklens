@@ -54,7 +54,8 @@ def _search(query: str, countrycodes: str = "") -> tuple:
         return ()
     finally:
         _last_call = time.monotonic()
-    return tuple((d["display_name"], float(d["lat"]), float(d["lon"]), d.get("type", "")) for d in data)
+    return tuple((d["display_name"], float(d["lat"]), float(d["lon"]), d.get("type", ""),
+                  float(d.get("importance") or 0.0)) for d in data)
 
 
 def _searchable(c: Clue) -> bool:
@@ -102,6 +103,18 @@ def _spread_km(hits: tuple) -> float:
     return max((_km(a[1], a[2], b[1], b[2]) for a in hits for b in hits), default=0.0)
 
 
+def _importance(h) -> float:
+    return h[4] if len(h) > 4 else 0.0
+
+
+def _dominant(hits: tuple) -> bool:
+    """OpenStreetMap ranks the first result far above the others (a famous
+    theater vs. a road with the same name)."""
+    top = _importance(hits[0])
+    second = max((_importance(h) for h in hits[1:]), default=0.0)
+    return top >= 0.3 and top >= 1.5 * second
+
+
 def judge(text: str, hits: tuple, hinted: bool, geo: Geolocation):
     """Pick a hit and decide how much to trust it.
 
@@ -123,10 +136,11 @@ def judge(text: str, hits: tuple, hinted: bool, geo: Geolocation):
         return best, "strong", ""
     if not together:
         n = f"{len(hits)}+" if len(hits) >= 5 else str(len(hits))
-        if hinted and geo.points:  # within the model's region, show the one nearest its guess
-            pin = geo.points[0]
-            best = min(hits, key=lambda h: _km(h[1], h[2], pin.lat, pin.lon))
-            return best, "weak", f"{n} places in that area share this name; showing the one nearest the model's guess."
+        if hinted and _dominant(hits):
+            return hits[0], "strong", (f"The best-known match in that area ({n} places share the name; "
+                                       "OpenStreetMap ranks this one far above the rest).")
+        # Never let the vision model's pin choose between far-apart places: it can be
+        # confidently wrong. Keep OpenStreetMap's own ranking.
         return hits[0], "weak", f"{n} places share this name, up to {spread:,.0f} km apart."
     return hits[0], "weak", "A single word: could be a coincidence."
 
@@ -193,7 +207,7 @@ def _short(name: str) -> str:
 
 
 def _upgrade(m: TextMatch, hit, note: str) -> TextMatch:
-    name, lat, lon, kind = hit
+    name, lat, lon, kind = hit[:4]
     return m.model_copy(update={"name": name, "lat": lat, "lon": lon, "kind": kind,
                                 "confidence": "strong", "note": note})
 
@@ -304,14 +318,20 @@ def lookup(clues: list[Clue], geo: Geolocation, ai=None, feature_keys: list[str]
     matches: dict[str, TextMatch] = {}
     pools: dict[str, tuple] = {}
     budget = config.LOOKUP_MAX_QUERIES
-    for c in _candidates(clues)[:5]:
+    candidates = _candidates(clues)
+    if ai is not None and ai.sign_texts:
+        # The AI model doubles as a proofreader: OCR text it didn't also read is
+        # usually a misreading ("Pa-pints"), so don't search it.
+        candidates = [c for c in candidates if c.source in ("ai", "ocr+ai")]
+    for c in candidates[:5]:
         for q, hinted in _queries(c.label, geo, ai_places):
             if budget <= 0:
                 break
             budget -= 1
             hits = _search(q, "us" if us else "")
             if hits:
-                (name, lat, lon, kind), confidence, note = judge(c.label, hits, hinted, geo)
+                best, confidence, note = judge(c.label, hits, hinted, geo)
+                name, lat, lon, kind = best[:4]
                 matches[c.id] = TextMatch(clue_id=c.id, text=c.label, query=q, name=name, lat=lat,
                                           lon=lon, kind=kind, confidence=confidence,
                                           n_results=len(hits), note=note)

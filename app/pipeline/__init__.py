@@ -11,7 +11,9 @@ from .attribution import attribute
 from .detect import detect_with_candidates
 from .exif import read_exif
 from .geolocate import geolocate
-from .lookup import lookup as text_lookup
+from . import vlm
+from .features import features_in
+from .lookup import geocode_guesses, lookup as text_lookup
 from .ocr import find_text
 from .risk import score
 from .scene import scene_clues
@@ -56,14 +58,16 @@ def downscale(img: Image.Image, max_side: int | None = None) -> tuple[Image.Imag
 def rescale(clues: list[Clue], factor: float) -> list[Clue]:
     if factor == 1.0:
         return clues
-    return [c.model_copy(update={"box": [v / factor for v in c.box]}) for c in clues]
+    return [c if c.box is None else c.model_copy(update={"box": [v / factor for v in c.box]})
+            for c in clues]
 
 
 def analyze(raw: Image.Image, upright: Image.Image, explain: bool = True,
-            lookup: bool | None = None) -> Analysis:
+            lookup: bool | None = None, use_ai: bool | None = None) -> Analysis:
     exif = read_exif(raw)
     work, factor = downscale(upright)
     lookup = config.TEXT_LOOKUP if lookup is None else lookup
+    use_ai = (config.VLM_MODE != "off") if use_ai is None else use_ai
 
     embeds = None
     if not config.MOCK_MODE:  # embed once, share between geolocation and scene
@@ -85,7 +89,16 @@ def analyze(raw: Image.Image, upright: Image.Image, explain: bool = True,
     if explain:
         clues = attribute(work, clues, geo)  # boxes still in `work` coordinates
     clues = rescale(clues, factor)
-    matches = text_lookup(clues, geo) if lookup else []
+
+    # Local AI model: reads signs, lists objects, guesses places (#1).
+    ai = vlm.ask(upright) if use_ai else None
+    if ai and not ai.error:
+        clues = vlm.merge_texts(clues, ai)
+    feature_keys = features_in(clues, ai.features if ai and not ai.error else None)
+    if lookup and ai and not ai.error:
+        us = bool(geo.country) and geo.country[0].name == "United States"
+        ai = geocode_guesses(ai, us)
+    matches = text_lookup(clues, geo, ai if ai and not ai.error else None, feature_keys) if lookup else []
 
     preview = None
     if (raw.format or "").upper() not in BROWSER_FORMATS:
@@ -93,7 +106,7 @@ def analyze(raw: Image.Image, upright: Image.Image, explain: bool = True,
 
     return Analysis(
         width=upright.width, height=upright.height, exif=exif, clues=clues, scene=scene,
-        geolocation=geo, text_matches=matches, lookup_used=lookup,
-        risk=score(exif, clues, geo, scene, matches), preview_b64=preview,
+        geolocation=geo, text_matches=matches, lookup_used=lookup, ai=ai,
+        risk=score(exif, clues, geo, scene, matches, ai), preview_b64=preview,
         mock=config.MOCK_MODE,
     )

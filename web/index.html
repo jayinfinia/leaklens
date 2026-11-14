@@ -64,6 +64,10 @@
   #found small { color: var(--muted); display: block; }
   .tag.blue { background: var(--accent); color: #04121f; }
   .tag.grey { background: var(--line); color: var(--text); }
+  .tag.purple { background: #a371f7; color: #fff; }
+  .ai-guess { padding: 6px 0; border-top: 1px solid var(--line); }
+  .ai-guess small, .ai-clue small { color: var(--muted); display: block; }
+  .ai-clue { padding: 4px 0; }
   .match.weak { border-left-color: var(--line); }
   .match small { color: var(--muted); display: block; }
 </style>
@@ -74,6 +78,7 @@
   <p>See what your photo gives away before you post it.</p>
   <span id="mockBadge" class="badge" hidden>mock mode</span>
   <span id="ocrBadge" class="badge" style="border-color:var(--line);color:var(--muted)" hidden></span>
+  <span id="aiBadge" class="badge" style="border-color:#a371f7;color:#a371f7" hidden></span>
 </header>
 
 <main>
@@ -84,6 +89,9 @@
       <label class="toggle"><input type="checkbox" id="lookup">
         <span>Also search sign text on OpenStreetMap, like an investigator would.
         <br><small>Sends detected text (not the photo) to OpenStreetMap.</small></span></label>
+      <label class="toggle"><input type="checkbox" id="useAi">
+        <span>Ask a local AI vision model to read signs and reason about the location.
+        <br><small id="aiNote">Runs on this computer through Ollama. Adds 10 to 60 seconds.</small></span></label>
       <div class="stage" id="stage"><img id="photo" alt="Uploaded photo"></div>
       <p id="status" class="muted"></p>
       <p id="error"></p>
@@ -119,12 +127,19 @@
       <div id="geoSummary"></div>
       <div id="matches"></div>
       <div id="map"></div>
+      <p class="muted" style="margin:6px 0 0"><small><span style="color:#f85149">●</span> vision model pins
+        <span style="color:#a371f7">●</span> AI model guesses <span style="color:#58a6ff">●</span> sign text found on the map</small></p>
     </div>
 
     <div class="panel">
       <h2>Clues found</h2>
       <p class="muted" style="margin:0 0 6px"><small>Bars show how much hiding each clue alone weakens the model's top guess. Uncheck to keep a clue.</small></p>
       <ul id="clues"></ul>
+    </div>
+
+    <div class="panel" id="aiPanel" hidden>
+      <h2>Local AI model</h2>
+      <div id="ai"></div>
     </div>
 
     <div class="panel" id="scenePanel" hidden>
@@ -153,12 +168,20 @@ let currentFile = null, analysis = null, map = null, markers = [];
 fetch("/api/health").then(r => r.json()).then(h => {
   $("mockBadge").hidden = !h.mock;
   if (h.ocr_engine && !h.mock) { $("ocrBadge").hidden = false; $("ocrBadge").textContent = "OCR: " + h.ocr_engine; }
+  const ai = h.ai || {};
+  if (ai.available) { $("aiBadge").hidden = false; $("aiBadge").textContent = "AI: " + ai.model; }
+  $("useAi").disabled = !ai.available;
+  let savedAi = null;
+  try { savedAi = localStorage.getItem("leaklens.ai"); } catch (_) {}
+  $("useAi").checked = !!ai.available && savedAi !== "0";
+  if (!ai.available) $("aiNote").textContent = "Unavailable: " + (ai.reason || "Ollama not running") + ".";
   let saved = null;
   try { saved = localStorage.getItem("leaklens.lookup"); } catch (_) {}
   $("lookup").checked = saved === null ? !!h.lookup_default : saved === "1";
 }).catch(() => {});
 $("lookup").onchange = (e) => { try { localStorage.setItem("leaklens.lookup", e.target.checked ? "1" : "0"); } catch (_) {} };
-const withLookup = (url) => `${url}?lookup=${$("lookup").checked}`;
+$("useAi").onchange = (e) => { try { localStorage.setItem("leaklens.ai", e.target.checked ? "1" : "0"); } catch (_) {} };
+const withLookup = (url) => `${url}?lookup=${$("lookup").checked}&ai=${$("useAi").checked}`;
 
 $("drop").onclick = () => $("file").click();
 $("file").onchange = (e) => e.target.files[0] && start(e.target.files[0]);
@@ -193,7 +216,8 @@ async function start(file) {
   $("drop").style.display = "none";
   $("stage").style.display = "block";
   $("photo").src = URL.createObjectURL(file);
-  busy(true, "Analyzing… (the first run loads the models)");
+  busy(true, $("useAi").checked ? "Analyzing… the local AI model can take up to a minute"
+                                 : "Analyzing… (the first run loads the models)");
   const fd = new FormData(); fd.append("file", file);
   try {
     analysis = await post(withLookup("/api/analyze"), fd);
@@ -239,14 +263,20 @@ function render(a) {
     const tags = (m ? (m.confidence === "strong" ? '<span class="tag blue">found on map</span>'
                                                  : '<span class="tag grey">possible match</span>') : "")
       + (c.id === topId ? '<span class="tag">model leans on it</span>' : "");
-    const reason = !m ? esc(c.reason) : m.confidence === "strong" ? `Search found it: ${esc(m.name)}`
+    const reason = !m ? esc(c.reason) : m.confidence === "strong" ? `Search found it: ${esc(m.name)}. ${esc(m.note)}`
       : `${esc(c.reason)} Possible match: ${esc(m.name)}. ${esc(m.note)}`;
-    li.innerHTML = `<input type="checkbox" checked data-id="${c.id}">
-      <div><b>${clueName(c)}</b>${tags}
+    const aiTag = c.source === "ai" ? '<span class="tag purple">AI read</span>'
+      : c.source === "ocr+ai" ? '<span class="tag purple">AI confirmed</span>' : "";
+    const box = c.box ? `<input type="checkbox" checked data-id="${c.id}">`
+      : `<input type="checkbox" disabled title="Not located in the photo, so it can't be blurred">`;
+    li.innerHTML = `${box}
+      <div><b>${clueName(c)}</b>${tags}${aiTag}
       <span class="muted">${Math.round(c.score * 100)}%</span><small>${reason}</small>${m ? "" : bar}</div>`;
     li.querySelector("input").onchange = (e) => toggleBox(c.id, e.target.checked);
     $("clues").appendChild(li);
   });
+
+  renderAi(a.ai);
 
   $("scenePanel").hidden = !a.scene.length;
   $("scene").innerHTML = a.scene.map(s =>
@@ -267,10 +297,23 @@ function render(a) {
     ? `<div class="match"><b>Sign text “${esc(m.text)}” found on the map</b><small>${esc(m.name)}</small><small>searched: ${esc(m.query)}</small></div>`
     : `<div class="match weak"><b>Possible match for “${esc(m.text)}”</b><small>${esc(m.name)}</small><small>${esc(m.note)} Searched: ${esc(m.query)}</small></div>`).join("")
     || (a.lookup_used ? "<p class='muted'><small>No sign text matched a place on OpenStreetMap.</small></p>" : "");
-  drawMap(g.points, ex.gps, a.text_matches);
+  drawMap(g.points, ex.gps, a.text_matches, (a.ai && !a.ai.error) ? a.ai.guesses.filter(x => x.lat != null) : []);
 
   $("factors").innerHTML = a.risk.factors.map(f =>
     `<div class="factor"><div>${esc(f.reason)}<small>${esc(f.source)}</small></div><b>${Math.round(f.points)}%</b></div>`).join("");
+}
+
+function renderAi(ai) {
+  $("aiPanel").hidden = !ai;
+  if (!ai) return;
+  if (ai.error) { $("ai").innerHTML = `<p class="muted">${esc(ai.model)}: ${esc(ai.error)}</p>`; return; }
+  const guesses = ai.guesses.map((g, i) => `<div class="ai-guess"><b>${i + 1}. ${esc(g.place)}</b>
+    <span class="muted">${Math.round(g.confidence * 100)}%</span><small>${esc(g.why)}</small></div>`).join("");
+  const clues = ai.clues.map(c => `<div class="ai-clue">${esc(c.clue)}<small>${esc(c.suggests)}</small></div>`).join("");
+  const feats = ai.features.length ? `<p class="muted"><small>Objects it saw: ${ai.features.map(esc).join(", ")}</small></p>` : "";
+  const texts = ai.sign_texts.length ? `<p class="muted"><small>Signs it read: ${ai.sign_texts.map(t => "“" + esc(t) + "”").join(", ")}</small></p>` : "";
+  $("ai").innerHTML = `<p class="muted" style="margin:0"><small>${esc(ai.model)}, ${(ai.ms / 1000).toFixed(1)} s, ran on this computer</small></p>
+    ${guesses || "<p class='muted'>No guess.</p>"}${texts}${feats}${clues ? "<details><summary class='muted'>Clues it used</summary>" + clues + "</details>" : ""}`;
 }
 
 function setRisk(r) {
@@ -290,7 +333,7 @@ function toggleBox(id, on) {
 
 function drawBoxes(a, topId) {
   document.querySelectorAll(".box").forEach(b => b.remove());
-  a.clues.forEach(c => {
+  a.clues.filter(c => c.box).forEach(c => {
     const [x0, y0, x1, y1] = c.box;
     const d = document.createElement("div");
     d.className = "box" + (c.id === topId ? " top" : "");
@@ -306,11 +349,11 @@ function drawBoxes(a, topId) {
   });
 }
 
-function drawMap(points, gps, matches = []) {
+function drawMap(points, gps, matches = [], aiGuesses = []) {
   if (typeof L === "undefined") {  // map tiles need internet; keep the rest working offline
     $("map").style.height = "auto";
     $("map").innerHTML = "<p class='muted' style='padding:8px'>Map unavailable (offline). Coordinates: " +
-      (points.concat(matches).map(p => `${p.lat}, ${p.lon}`).slice(0, 4).join(" · ") || "none") + "</p>";
+      (points.concat(matches, aiGuesses).map(p => `${p.lat}, ${p.lon}`).slice(0, 4).join(" · ") || "none") + "</p>";
     return;
   }
   if (!map) {
@@ -326,6 +369,9 @@ function drawMap(points, gps, matches = []) {
       ? { radius: 9, color: "#58a6ff", fillOpacity: .8 }
       : { radius: 8, color: "#58a6ff", fillOpacity: 0, dashArray: "3 3" })
       .bindTooltip(`Sign text “${m.text}”: ${m.name.split(",").slice(0, 3).join(",")}`).addTo(map)));
+  aiGuesses.forEach((gg, i) => markers.push(
+    L.circleMarker([gg.lat, gg.lon], { radius: i ? 6 : 9, color: "#a371f7", fillOpacity: i ? .25 : .6 })
+      .bindTooltip(`AI guess ${i + 1}: ${gg.place} (${Math.round(gg.confidence * 100)}%)`).addTo(map)));
   if (gps) markers.push(L.marker([gps.lat, gps.lon]).bindTooltip("Exact GPS from metadata").addTo(map));
   const strong = matches.find(m => m.confidence === "strong");
   if (strong) {
@@ -342,7 +388,7 @@ async function clean(url, useSelection) {
   fd.append("file", currentFile);
   if (useSelection) {
     const chosen = [...document.querySelectorAll("#clues input:checked")].map(i => i.dataset.id);
-    fd.append("boxes", JSON.stringify(analysis.clues.filter(c => chosen.includes(c.id)).map(c => c.box)));
+    fd.append("boxes", JSON.stringify(analysis.clues.filter(c => c.box && chosen.includes(c.id)).map(c => c.box)));
   }
   busy(true, useSelection ? "Scrubbing and re-checking…" : "Finding the fewest clues to hide…");
   try {

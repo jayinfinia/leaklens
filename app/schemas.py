@@ -11,12 +11,15 @@ class Clue(BaseModel):
     category: str
     label: str  # what was matched: the prompt, or the OCR text
     score: float  # detector confidence, 0-1
-    box: list[float]  # [x0, y0, x1, y1] in original-image pixels
+    # [x0, y0, x1, y1] in original-image pixels; None for text only the AI
+    # model read (we know it's in the photo, not where)
+    box: Optional[list[float]] = None
     reason: str
     weight: float
     # How much blurring this clue alone lowers confidence in the top
     # location guess (0-1). None when attribution is off.
     impact: Optional[float] = None
+    source: str = ""  # "", "ocr+ai" (OCR box, AI reading) or "ai"
 
 
 class SceneClue(BaseModel):
@@ -40,6 +43,25 @@ class TextMatch(BaseModel):
     confidence: str = "strong"  # "strong" (one clear place) or "weak" (possible match)
     n_results: int = 1
     note: str = ""
+
+
+class AIGuess(BaseModel):
+    place: str
+    confidence: float
+    why: str = ""
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+
+
+class AIReading(BaseModel):
+    """What the local AI vision model extracted and concluded."""
+    model: str
+    ms: int = 0
+    sign_texts: list[str] = Field(default_factory=list)
+    clues: list[dict] = Field(default_factory=list)
+    features: list[str] = Field(default_factory=list)
+    guesses: list[AIGuess] = Field(default_factory=list)
+    error: str = ""
 
 
 class GuessLabel(BaseModel):
@@ -89,6 +111,7 @@ class Analysis(BaseModel):
     geolocation: Geolocation
     text_matches: list[TextMatch] = Field(default_factory=list)
     lookup_used: bool = False
+    ai: Optional[AIReading] = None
     risk: Risk
     # JPEG preview for formats browsers can't show (e.g. HEIC from iPhones).
     preview_b64: Optional[str] = None

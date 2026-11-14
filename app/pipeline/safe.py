@@ -13,10 +13,23 @@ from .risk import score
 from .scrub import blur_regions
 
 
+def _unlocated_note(analysis: Analysis) -> str:
+    texts = [c.label for c in analysis.clues if c.box is None and c.kind == "text"]
+    if not texts:
+        return ""
+    return (" The AI model also read " + ", ".join(f"“{t}”" for t in texts[:3])
+            + ", which LeakLens couldn't locate in the photo; check for it and crop or blur it yourself.")
+
+
 def plan(upright, analysis: Analysis) -> tuple[list[str], str]:
+    ids, note = _plan(upright, analysis)
+    return ids, note + _unlocated_note(analysis)
+
+
+def _plan(upright, analysis: Analysis) -> tuple[list[str], str]:
     matched = {m.clue_id for m in analysis.text_matches if m.confidence == "strong"}
     # Text that matched a real place goes first, then what the model leans on most.
-    clues = sorted(analysis.clues,
+    clues = sorted((c for c in analysis.clues if c.box is not None),
                    key=lambda c: (c.id in matched, c.impact or 0, c.weight * c.score), reverse=True)
     if not clues:
         return [], "No visual clues to blur; metadata will still be stripped."

@@ -13,13 +13,14 @@ Stripping EXIF data isn't enough. A street sign in the background, a storefront,
 | 2. Text | Reads the full photo, then re-reads every detected sign as a zoomed crop; merges words into whole signs, unstacks vertical marquee letters (PARAMOUNT), and weights text by what it reveals: city or street names, phone numbers and institutions count far more than "CLASS OF 2024" | Apple Vision (Live Text engine) on macOS, EasyOCR elsewhere |
 | 2. Scene | Flags whole-image signals with no single spot to blur (skyline, mountains, road markings, plants, architecture) | StreetCLIP |
 | 3. Geolocation | Guesses country, then US state, and drops pins on a map | StreetCLIP + GeoCLIP |
-| 3b. Sign-text lookup (opt-in) | Searches detected business and place names on OpenStreetMap, with the models' region guess as a hint. One word like "POPPY" matches many cities, so clues are used together: a candidate is confirmed when another sign in the photo also matches something within ~300 m. Matches are graded strong or possible, never overclaimed | Nominatim + Overpass |
+| 3a. Local AI model (optional) | Reads every sign, lists clues and visible objects, and reasons to up to 3 candidate places, in two stages (clue extraction, then reasoning) like the GeoMiner attack. Its readings upgrade OCR; its guesses become search hints. Runs on your machine | Qwen3-VL via Ollama |
+| 3b. Sign-text lookup (opt-in) | Searches detected business and place names on OpenStreetMap, with the models' region guess as a hint. One word like "POPPY" matches many cities, so clues are used together: a candidate is confirmed when another sign in the photo also matches something within ~300 m, when it agrees with the AI model's guess, or (Bellingcat-style) when the objects in the photo, like a phone box or a butcher's, exist within 150 m of it. Matches are graded strong or possible, never overclaimed | Nominatim + Overpass |
 | 4. Attribution | Blurs each clue on its own and measures how much the top guess weakens, so you see which clue gave it away | StreetCLIP (batched) |
 | 5. Risk + fix | Explainable 0-100 score. **Make it safe** blurs the fewest clues needed to reach low risk; or pick clues yourself. Everything is re-checked after | |
 
 iPhone HEIC photos work too (converted for preview automatically), and the UI still works offline; only the map tiles need internet.
 
-Everything runs locally and nothing is stored. The one exception is the opt-in sign-text lookup, which sends detected text (never the photo) to OpenStreetMap.
+Everything runs locally and nothing is stored, including the optional AI model (through Ollama on your machine). The one exception is the opt-in sign-text lookup, which sends detected text and place names (never the photo) to OpenStreetMap.
 
 ## Quick start
 
@@ -52,6 +53,19 @@ pytest -q
 
 The suite runs in mock mode, so CI never downloads weights. If torch and transformers are installed, `tests/test_models_offline.py` also runs the real (non-mock) code paths against tiny, randomly initialized OWLv2 and CLIP models. That checks shapes, batching, box coordinates and library compatibility (tested on transformers 4.46 and 5.x) without downloading anything.
 
+## Local AI model (optional)
+
+```bash
+# install Ollama from https://ollama.com, then:
+ollama pull qwen3-vl:8b      # ~6 GB; use qwen3-vl:4b on smaller machines (set LEAKLENS_VLM_MODEL)
+```
+
+LeakLens detects Ollama automatically (header shows "AI: qwen3-vl:8b"); toggle it per photo in the UI. The photo stays on your machine. Expect 10 to 60 seconds per photo on a laptop.
+
+## Roadmap
+
+See [docs/ROADMAP.md](docs/ROADMAP.md): street-photo verification (Mapillary + MegaLoc), an invisible scrub against AI geolocation (GeoShield-style), and an OSV-5M/DoxBench benchmark.
+
 ## Benchmark
 
 `scripts/benchmark.py` measures LeakLens on freely licensed street photos from 20 US cities (`benchmark/cities.csv`, from New York to Anchorage):
@@ -73,6 +87,9 @@ All settings live in `app/config.py` and can be overridden with environment vari
 | `LEAKLENS_MOCK` | `0` | Skip models, return canned results |
 | `LEAKLENS_DEVICE` | auto | `cuda`, `mps` or `cpu` |
 | `LEAKLENS_DETECT_THRESHOLD` | `0.3` | OWLv2 confidence cutoff |
+| `LEAKLENS_VLM` | `auto` | `auto` uses the local AI model when Ollama has it; `off` disables |
+| `LEAKLENS_VLM_MODEL` | `qwen3-vl:8b` | Any Ollama vision model |
+| `LEAKLENS_OLLAMA_URL` | `http://localhost:11434` | Where Ollama runs |
 | `LEAKLENS_TEXT_LOOKUP` | `0` | Default for the OpenStreetMap sign-text lookup (the UI has a toggle) |
 | `LEAKLENS_OCR_MAX_SIDE` | `2048` | OCR reads a sharper copy than the vision models |
 | `LEAKLENS_OCR_ENGINE` | `auto` | `auto` (Apple Vision + EasyOCR together on macOS, EasyOCR elsewhere), `both`, `apple` or `easyocr`. Debug with `python scripts/ocr_debug.py photo.jpg` |
@@ -147,9 +164,13 @@ This project builds on the following work. Thank you to the authors.
 - [Image Scrubber](https://github.com/everestpipkin/image-scrubber) by Everest Pipkin: browser-based EXIF removal and manual blurring for protest photos.
 - [DotScramble](https://github.com/kareem2099/DotScramble): automatic plate and OCR text redaction.
 
-**Research**
+**Research and tools**
+- Bellingcat. *OpenStreetMap Search* ([code](https://github.com/bellingcat/osm-search), MIT). The object proximity search follows its approach of finding places where several features sit close together.
+- Qwen team. *Qwen3-VL* (Apache-2.0), run through [Ollama](https://ollama.com).
+- Wang et al. *GeoVista*. Agentic zoom-and-search geolocation on Qwen2.5-VL, which inspired using a small open model as the attacker.
+
 - **PIGEON**: Haas, Skreta, Alberti, Finn. *PIGEON: Predicting Image Geolocations* (CVPR 2024). [Code](https://github.com/LukasHaas/PIGEON).
-- Luo et al. *Doxing via the Lens: Revealing Location-related Privacy Leakage on Multi-modal Large Reasoning Models* (ICLR 2026). The low/medium/high risk levels are loosely adapted from its three-level visual privacy risk framework.
+- Luo et al. *Doxing via the Lens: Revealing Location-related Privacy Leakage on Multi-modal Large Reasoning Models* (ICLR 2026). The low/medium/high risk levels are loosely adapted from its three-level visual privacy risk framework, and the AI model's two-stage prompt follows its GeoMiner attack.
 - Mendes et al. *Granular Privacy Control for Geolocation with Vision Language Models* (EMNLP 2024).
 - *Hiding in Plain Sight: A Diffusion-based Mitigation of Geolocation Privacy Leakage in Vision-Language Models* (2026). Closest prior work on the defense side. LeakLens differs by explaining each clue and letting the user decide what to remove.
 

@@ -60,7 +60,7 @@ def test_analysis_has_clues_scene_and_attribution(photo_no_gps):
     raw, upright = load_image(photo_no_gps)
     a = analyze(raw, upright)
     assert {c.kind for c in a.clues} == {"object", "text"}
-    assert all(c.impact is not None for c in a.clues)
+    assert all(c.impact is not None for c in a.clues if c.box is not None)
     assert a.scene and a.scene[0].category == "power_lines"
     assert any(f.source == "scene" for f in a.risk.factors)
 
@@ -87,7 +87,7 @@ def test_large_images_keep_boxes_in_original_coordinates():
     a = analyze(raw, upright)
     assert (a.width, a.height) == (2560, 1920)
     # mock clue spans x up to 34% of the width: 870px here, 435px in the 1280px working copy
-    assert abs(max(c.box[2] for c in a.clues) - 0.34 * 2560) < 2
+    assert abs(max(c.box[2] for c in a.clues if c.box) - 0.34 * 2560) < 2
 
 
 # ----------------------------------------------------------- API
@@ -95,7 +95,7 @@ def test_api_analyze_then_scrub(photo):
     body = post("/api/analyze", photo).json()
     assert body["mock"] and body["clues"]
 
-    boxes = json.dumps([c["box"] for c in body["clues"]])
+    boxes = json.dumps([c["box"] for c in body["clues"] if c["box"]])
     out = post("/api/scrub", photo, boxes=boxes).json()
     assert out["after"]["exif"]["has_exif"] is False
     assert out["after"]["clues"] == []  # blurred clues are gone on re-check

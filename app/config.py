@@ -121,3 +121,11 @@ NOMINATIM_URL = os.getenv("LEAKLENS_NOMINATIM_URL", "https://nominatim.openstree
 # Risk level cutoffs on the 0-100 score.
 RISK_MEDIUM = 30
 RISK_HIGH = 60
+
+# Local AI vision model through Ollama (#1). auto: used when available.
+VLM_MODE = os.getenv("LEAKLENS_VLM", "auto")  # auto | off
+OLLAMA_URL = os.getenv("LEAKLENS_OLLAMA_URL", "http://localhost:11434")
+VLM_MODEL = os.getenv("LEAKLENS_VLM_MODEL", "qwen3-vl:8b")
+VLM_MAX_SIDE = int(os.getenv("LEAKLENS_VLM_MAX_SIDE", "1280"))
+VLM_TIMEOUT = float(os.getenv("LEAKLENS_VLM_TIMEOUT", "180"))
+AI_AGREE_KM = 40  # a sign-text candidate this close to the AI's guess counts as agreement

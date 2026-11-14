@@ -47,7 +47,7 @@ def _clue_leak(c: Clue) -> float:
 
 def score(exif: ExifReport, clues: list[Clue], geo: Geolocation,
           scene: list[SceneClue] | None = None,
-          matches: list[TextMatch] | None = None) -> Risk:
+          matches: list[TextMatch] | None = None, ai=None) -> Risk:
     factors: list[tuple[float, RiskFactor]] = []
 
     def add(leak: float, source: str, reason: str):
@@ -77,6 +77,11 @@ def score(exif: ExifReport, clues: list[Clue], geo: Geolocation,
             if c.impact and c.impact >= 0.01:
                 reason += f" Hiding it alone cuts the model's confidence by {c.impact * 100:.0f} pts."
             add(_clue_leak(c) * 0.5 ** rank, c.id, reason)
+
+    if ai is not None and not ai.error and ai.guesses:
+        g = ai.guesses[0]
+        add(min(0.45, 0.5 * g.confidence), "ai",
+            f"A local AI model guesses {g.place} ({g.confidence:.0%}): {g.why}")
 
     for s in scene or []:
         add(0.3 * s.weight * s.prob, "scene", f"Scene: {s.label}. {s.reason}")

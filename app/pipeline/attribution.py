@@ -20,7 +20,8 @@ def attribute(image, clues: list[Clue], geo: Geolocation) -> list[Clue]:
 
     from .geolocate import label_probs, target
 
-    ranked = sorted(clues, key=lambda c: c.score, reverse=True)[: config.ATTRIBUTION_MAX_CLUES]
+    ranked = sorted((c for c in clues if c.box is not None), key=lambda c: c.score,
+                    reverse=True)[: config.ATTRIBUTION_MAX_CLUES]
     labels, top = target(geo)
     idx = labels.index(top)
 

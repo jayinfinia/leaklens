@@ -70,12 +70,20 @@ def _candidates(clues: list[Clue]) -> list[Clue]:
     return sorted(texts, key=lambda c: c.weight * c.score, reverse=True)
 
 
-def _queries(text: str, geo: Geolocation) -> list[tuple[str, bool]]:
+def _place_hint(place: str) -> str:
+    """'Huntsville, Alabama, USA' -> 'Huntsville, Alabama' (country is implied by countrycodes)."""
+    parts = [p.strip() for p in place.split(",") if p.strip()]
+    if len(parts) >= 3 and parts[-1].lower() in ("usa", "us", "united states", "united states of america"):
+        parts = parts[:-1]
+    return ", ".join(parts[:2])
+
+
+def _queries(text: str, geo: Geolocation, ai_places: list[str] | None = None) -> list[tuple[str, bool]]:
     """(query, uses_region_hint) pairs, most specific first."""
     text = clean_query(text)
     if len(text) < 3:
         return []
-    hints = []
+    hints = [(f"{text}, {_place_hint(p)}", True) for p in (ai_places or [])[:1] if _place_hint(p)]
     if geo.region:
         hints.append((f"{text}, {geo.region[0].name}", True))
     elif geo.country and geo.country[0].prob >= 0.3:
@@ -190,10 +198,25 @@ def _upgrade(m: TextMatch, hit, note: str) -> TextMatch:
                                 "confidence": "strong", "note": note})
 
 
-def corroborate(matches: dict, pools: dict, clues: list[Clue], use_overpass: bool = True) -> dict:
-    """Upgrade weak matches that other clues in the same photo agree with."""
+def corroborate(matches: dict, pools: dict, clues: list[Clue], use_overpass: bool = True,
+                ai_points: list[tuple[str, float, float]] | None = None,
+                feature_keys: list[str] | None = None) -> dict:
+    """Upgrade weak matches that other evidence in the same photo agrees with."""
     near_km = config.NEARBY_M / 1000
     by_id = {c.id: c for c in clues}
+
+    # 0. The local AI model's own guess lands near one of the candidates.
+    for cid, m in list(matches.items()):
+        if m.confidence == "strong" or not ai_points:
+            continue
+        best = None
+        for place, alat, alon in ai_points:
+            for h in pools[cid]:
+                d = _km(h[1], h[2], alat, alon)
+                if d <= config.AI_AGREE_KM and (best is None or d < best[0]):
+                    best = (d, h, place)
+        if best:
+            matches[cid] = _upgrade(m, best[1], f"Agrees with the local AI model's guess ({best[2]}).")
 
     # 1. Two different signs with candidates next to each other.
     for cid, m in list(matches.items()):
@@ -233,10 +256,42 @@ def corroborate(matches: dict, pools: dict, clues: list[Clue], use_overpass: boo
         if n:
             matches[cid] = _upgrade(m, hit, f"Nearby on the map: {', '.join(names[:3])}, "
                                             f"matching other text in the photo.")
+
+    # 3. Bellingcat-style: which candidate has the photo's objects around it?
+    if feature_keys:
+        from . import features
+
+        fcalls = 0
+        for cid, m in list(matches.items()):
+            if m.confidence == "strong" or fcalls >= 2 or len(pools[cid]) > 10:
+                continue
+            fcalls += 1
+            hits = pools[cid][: features.MAX_POINTS]
+            scores = features.score_points([(h[1], h[2]) for h in hits], feature_keys)
+            win = features.pick(scores)
+            if win is not None:
+                matches[cid] = _upgrade(m, hits[win], "Nearby on the map: "
+                                        f"{features.labels(scores[win][1])}, also seen in the photo.")
     return matches
 
 
-def lookup(clues: list[Clue], geo: Geolocation) -> list[TextMatch]:
+def geocode_guesses(ai, us: bool):
+    """Put the AI model's top guesses on the map (2 lookups at most)."""
+    if ai is None or not ai.guesses:
+        return ai
+    out = []
+    for i, g in enumerate(ai.guesses):
+        if i < 2 and not config.MOCK_MODE:
+            hits = _search(g.place, "us" if us else "")
+            if hits:
+                g = g.model_copy(update={"lat": hits[0][1], "lon": hits[0][2]})
+        elif config.MOCK_MODE and i == 0:
+            g = g.model_copy(update={"lat": 38.0293, "lon": -78.4767})
+        out.append(g)
+    return ai.model_copy(update={"guesses": out})
+
+
+def lookup(clues: list[Clue], geo: Geolocation, ai=None, feature_keys: list[str] | None = None) -> list[TextMatch]:
     if config.MOCK_MODE:
         return [TextMatch(clue_id=c.id, text=c.label, query=f"{c.label}, Virginia",
                           name=f"{c.label.title()}, Charlottesville, Virginia, United States",
@@ -244,11 +299,13 @@ def lookup(clues: list[Clue], geo: Geolocation) -> list[TextMatch]:
                 for c in _candidates(clues)[:1]]
 
     us = bool(geo.country) and geo.country[0].name == "United States" and geo.country[0].prob >= 0.5
+    ai_places = [g.place for g in (ai.guesses if ai else []) if g.confidence >= 0.2]
+    ai_points = [(g.place, g.lat, g.lon) for g in (ai.guesses if ai else []) if g.lat is not None]
     matches: dict[str, TextMatch] = {}
     pools: dict[str, tuple] = {}
     budget = config.LOOKUP_MAX_QUERIES
     for c in _candidates(clues)[:5]:
-        for q, hinted in _queries(c.label, geo):
+        for q, hinted in _queries(c.label, geo, ai_places):
             if budget <= 0:
                 break
             budget -= 1
@@ -260,5 +317,5 @@ def lookup(clues: list[Clue], geo: Geolocation) -> list[TextMatch]:
                                           n_results=len(hits), note=note)
                 pools[c.id] = hits
                 break
-    matches = corroborate(matches, pools, clues)
+    matches = corroborate(matches, pools, clues, ai_points=ai_points, feature_keys=feature_keys)
     return sorted(matches.values(), key=lambda m: m.confidence != "strong")

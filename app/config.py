@@ -125,7 +125,8 @@ RISK_HIGH = 60
 # Local AI vision model through Ollama (#1). auto: used when available.
 VLM_MODE = os.getenv("LEAKLENS_VLM", "auto")  # auto | off
 OLLAMA_URL = os.getenv("LEAKLENS_OLLAMA_URL", "http://localhost:11434")
-VLM_MODEL = os.getenv("LEAKLENS_VLM_MODEL", "qwen3-vl:8b")
+VLM_MODEL = os.getenv("LEAKLENS_VLM_MODEL", "qwen3-vl:8b-instruct")  # non-thinking build answers directly
+VLM_THINK_BUDGET = int(os.getenv("LEAKLENS_VLM_THINK_BUDGET", "8192"))
 VLM_MAX_SIDE = int(os.getenv("LEAKLENS_VLM_MAX_SIDE", "1024"))
 # Ollama defaults to a small context; the image alone can fill it and cut the answer off
 VLM_NUM_CTX = int(os.getenv("LEAKLENS_VLM_NUM_CTX", "16384"))

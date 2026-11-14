@@ -90,10 +90,12 @@ def status(refresh: bool = False) -> dict:
     want = config.VLM_MODEL
     base = want.split(":")[0]
     match = next((n for n in names if n == want or n == f"{want}:latest"), None)
+    if match is None:  # use another installed build of the same family, instruct first
+        family = sorted((n for n in names if n.startswith(base)), key=lambda n: ("instruct" not in n, n))
+        match = family[0] if family else None
     if match is None:
         _status.update(ok=False, reason=f"model {want} not pulled (run: ollama pull {want})"
-                       + (f"; found {', '.join(n for n in names if n.startswith(base))}" if any(
-                           n.startswith(base) for n in names) else ""))
+                       + (f"; installed: {', '.join(names[:6])}" if names else ""))
         return dict(_status)
     _status.update(ok=True, reason="ready", model=match)
     return dict(_status)
@@ -153,20 +155,36 @@ def _repair(text: str) -> str:
     return cut + "".join(reversed(stack))
 
 
+KEYS = ("sign_texts", "clues", "features", "guesses")
+
+
 def _parse(content: str) -> dict:
-    content = content.strip()
+    """First JSON object in the text that looks like our answer. Handles
+    prose around it, several objects in a row ("Extra data"), and an answer
+    cut off at the end. Thinking traces often quote partial JSON, so the
+    LAST complete answer-like object wins."""
+    content = (content or "").strip()
+    dec = json.JSONDecoder()
+    found = []
+    i = content.find("{")
+    while i >= 0:
+        try:
+            obj, end = dec.raw_decode(content, i)
+            if isinstance(obj, dict) and any(k in obj for k in KEYS):
+                found.append(obj)
+            i = content.find("{", end)
+        except json.JSONDecodeError:
+            i = content.find("{", i + 1)
+    if found:
+        return found[-1]
     start = content.find("{")
     if start < 0:
         return {}
-    content = content[start:]
     try:
-        return json.loads(content)
+        obj = json.loads(_repair(content[start:]))
+        return obj if isinstance(obj, dict) else {}
     except json.JSONDecodeError:
-        end = content.rfind("}")
-        try:
-            return json.loads(content[:end + 1])
-        except json.JSONDecodeError:
-            return json.loads(_repair(content))
+        return {}
 
 
 def to_reading(data: dict, model: str, ms: int) -> AIReading:
@@ -237,6 +255,7 @@ def ask(image) -> AIReading | None:
     image_b64 = _encode(image, config.VLM_MAX_SIDE)
     t0 = time.monotonic()
     problems = []
+    budget = 2048
     for name, fmt in ATTEMPTS:
         prompt = PROMPT if name != "free" else PROMPT + "\nReturn a single JSON object with keys " \
             '"sign_texts", "clues", "features", "guesses". No other text.'
@@ -245,12 +264,21 @@ def ask(image) -> AIReading | None:
             "messages": [{"role": "user", "content": prompt, "images": [image_b64]}],
             "stream": False,
             "keep_alive": "15m",
-            "options": {"temperature": 0, "num_ctx": config.VLM_NUM_CTX, "num_predict": 2048},
+            "options": {"temperature": 0, "num_ctx": config.VLM_NUM_CTX, "num_predict": budget},
         }
         if fmt() is not None:
             payload["format"] = fmt()
         try:
             resp = _http("/api/chat", payload, timeout=config.VLM_TIMEOUT)
+            msg = resp.get("message") or {}
+            if (resp.get("done_reason") == "length" and not (msg.get("content") or "").strip()
+                    and msg.get("thinking") and budget < config.VLM_THINK_BUDGET):
+                # A thinking build used the whole budget on its reasoning. Let it finish once.
+                print(f"[leaklens] {model} is a thinking build and ran out of room; retrying with "
+                      f"{config.VLM_THINK_BUDGET} tokens (an '-instruct' build is much faster)")
+                budget = config.VLM_THINK_BUDGET
+                payload["options"]["num_predict"] = budget
+                resp = _http("/api/chat", payload, timeout=config.VLM_TIMEOUT * 2)
         except Exception as exc:
             problems.append(f"{name}: {exc}")
             print(f"[leaklens] AI attempt '{name}' failed: {exc}")
@@ -272,8 +300,10 @@ def ask(image) -> AIReading | None:
         where = "thinking" if not (resp.get("message") or {}).get("content", "").strip() else "content"
         problems.append(f"{name}: empty answer (looked in {where}; done_reason={resp.get('done_reason')})")
         print(f"[leaklens] AI attempt '{name}' gave nothing usable; trying the next mode")
+    hint = (" This looks like a thinking build; try: ollama pull qwen3-vl:8b-instruct"
+            if "instruct" not in model else "")
     return AIReading(model=model, ms=int(1000 * (time.monotonic() - t0)),
-                     error="no usable answer after 3 attempts: " + "; ".join(problems)[:400])
+                     error="no usable answer after 3 attempts: " + "; ".join(problems)[:400] + hint)
 
 
 # ------------------------------------------------------------ merge readings

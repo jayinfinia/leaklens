@@ -57,10 +57,10 @@ The suite runs in mock mode, so CI never downloads weights. If torch and transfo
 
 ```bash
 # install Ollama from https://ollama.com, then:
-ollama pull qwen3-vl:8b      # ~6 GB; use qwen3-vl:4b on smaller machines (set LEAKLENS_VLM_MODEL)
+ollama pull qwen3-vl:8b-instruct   # ~6 GB; answers directly. qwen3-vl:4b-instruct for smaller machines
 ```
 
-Check it on one photo with `python scripts/ai_check.py photo.jpg` (shows where the model's answer landed and what was parsed). LeakLens detects Ollama automatically (header shows "AI: qwen3-vl:8b"); toggle it per photo in the UI. The photo stays on your machine. Expect 10 to 60 seconds per photo on a laptop.
+Check it on one photo with `python scripts/ai_check.py photo.jpg` (shows where the model's answer landed and what was parsed). LeakLens detects Ollama automatically (header shows "AI: qwen3-vl:8b-instruct"); toggle it per photo in the UI. The photo stays on your machine. Expect 10 to 60 seconds per photo on a laptop.
 
 ## Roadmap
 
@@ -88,7 +88,7 @@ All settings live in `app/config.py` and can be overridden with environment vari
 | `LEAKLENS_DEVICE` | auto | `cuda`, `mps` or `cpu` |
 | `LEAKLENS_DETECT_THRESHOLD` | `0.3` | OWLv2 confidence cutoff |
 | `LEAKLENS_VLM` | `auto` | `auto` uses the local AI model when Ollama has it; `off` disables |
-| `LEAKLENS_VLM_MODEL` | `qwen3-vl:8b` | Any Ollama vision model |
+| `LEAKLENS_VLM_MODEL` | `qwen3-vl:8b-instruct` | Any Ollama vision model. Thinking builds (plain `qwen3-vl:8b`) work but are slower |
 | `LEAKLENS_OLLAMA_URL` | `http://localhost:11434` | Where Ollama runs |
 | `LEAKLENS_TEXT_LOOKUP` | `0` | Default for the OpenStreetMap sign-text lookup (the UI has a toggle) |
 | `LEAKLENS_OCR_MAX_SIDE` | `2048` | OCR reads a sharper copy than the vision models |

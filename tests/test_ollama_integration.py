@@ -19,7 +19,7 @@ def ollama(monkeypatch):
         monkeypatch.setattr(config, "MOCK_MODE", False)
         monkeypatch.setattr(config, "VLM_MODE", "auto")
         monkeypatch.setattr(config, "OLLAMA_URL", s.url)
-        monkeypatch.setattr(config, "VLM_MODEL", "qwen3-vl:8b")
+        monkeypatch.setattr(config, "VLM_MODEL", "qwen3-vl:8b-instruct")
         vlm._status.update(checked=0.0)
         return s
 
@@ -31,7 +31,8 @@ def ollama(monkeypatch):
 
 @pytest.mark.parametrize("mode,attempts", [
     ("good", 1), ("thinking", 1), ("inline_think", 1), ("prose", 1), ("truncated", 1),
-    ("schema_empty", 2),
+    ("schema_empty", 2), ("extra_data", 1),
+    ("long_think", 2),  # one cut-off try, then the same request with room to finish
 ])
 def test_every_reported_failure_mode_still_yields_a_reading(ollama, mode, attempts):
     s = ollama(mode)
@@ -127,3 +128,15 @@ def test_full_pipeline_with_real_code_paths(ollama, monkeypatch):
     assert m.confidence == "strong" and "Huntsville" in m.name
     assert "POPPY & PARLIAMENT, Huntsville, Alabama" in searched
     assert a.risk.level == "high"
+
+
+def test_an_installed_thinking_build_is_used_when_instruct_is_missing(ollama):
+    s = ollama("good")  # fake serves "qwen3-vl:8b" only
+    st = vlm.status(refresh=True)
+    assert st["ok"] and st["model"] == "qwen3-vl:8b"
+
+
+def test_thinking_build_hint_in_the_error(ollama, monkeypatch):
+    ollama("nothing")
+    r = vlm.ask(Image.new("RGB", (64, 64)))
+    assert "ollama pull qwen3-vl:8b-instruct" in r.error

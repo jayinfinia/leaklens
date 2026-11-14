@@ -8,6 +8,9 @@ reported against qwen3-vl and other thinking models:
   prose         format ignored: prose plus a fenced JSON block
   truncated     answer cut off mid-string (small default context)
   nothing       every attempt comes back empty
+  long_think    thinking build: with a small num_predict it only thinks
+                (done_reason=length, content empty); with room it answers
+  extra_data    two JSON objects back to back (json.loads: "Extra data")
 """
 
 import json
@@ -67,6 +70,14 @@ class FakeOllama:
         elif self.mode == "truncated":
             msg["content"] = full[: full.index("known pub") + 5]
             return {"message": msg, "done": True, "done_reason": "length"}
+        elif self.mode == "long_think":
+            if (req.get("options") or {}).get("num_predict", 0) < 4000:
+                msg = {"role": "assistant", "content": "",
+                       "thinking": 'Let me look... the sign reads {"partial": "POPP' + " hmm" * 400}
+                return {"message": msg, "done": True, "done_reason": "length"}
+            msg = {"role": "assistant", "content": full, "thinking": "long reasoning..."}
+        elif self.mode == "extra_data":
+            msg["content"] = '{"note": "draft"} ' + full
         elif self.mode == "nothing":
             msg = {"role": "assistant", "content": ""}
         return {"message": msg, "done": True, "done_reason": "stop"}

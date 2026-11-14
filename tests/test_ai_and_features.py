@@ -34,10 +34,18 @@ def _geo_dc():
 
 # ----------------------------------------------------------- Ollama plumbing
 def test_status_reports_missing_model_with_the_pull_command(real_mode, monkeypatch):
-    monkeypatch.setattr(vlm, "_http", lambda path, payload=None, timeout=5: {"models": [{"name": "qwen3-vl:4b"}]})
-    monkeypatch.setattr(config, "VLM_MODEL", "qwen3-vl:8b")
+    monkeypatch.setattr(vlm, "_http", lambda path, payload=None, timeout=5: {"models": [{"name": "llama3.2:3b"}]})
+    monkeypatch.setattr(config, "VLM_MODEL", "qwen3-vl:8b-instruct")
     st = vlm.status(refresh=True)
-    assert not st["ok"] and "ollama pull qwen3-vl:8b" in st["reason"] and "qwen3-vl:4b" in st["reason"]
+    assert not st["ok"] and "ollama pull qwen3-vl:8b-instruct" in st["reason"] and "llama3.2:3b" in st["reason"]
+
+
+def test_status_falls_back_to_another_qwen3_vl_build(real_mode, monkeypatch):
+    names = [{"name": "qwen3-vl:4b"}, {"name": "qwen3-vl:4b-instruct"}]
+    monkeypatch.setattr(vlm, "_http", lambda path, payload=None, timeout=5: {"models": names})
+    monkeypatch.setattr(config, "VLM_MODEL", "qwen3-vl:8b-instruct")
+    st = vlm.status(refresh=True)
+    assert st["ok"] and st["model"] == "qwen3-vl:4b-instruct"
 
 
 def test_status_when_ollama_is_not_running(real_mode, monkeypatch):

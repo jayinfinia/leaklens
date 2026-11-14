@@ -19,7 +19,7 @@ def real_mode(monkeypatch):
     monkeypatch.setattr(config, "VLM_MODE", "auto")
     monkeypatch.setattr(lookup_mod, "_overpass", lambda points, regexes: [])
     monkeypatch.setattr(features, "_fetch", lambda q: [])
-    vlm._status.update(checked=0.0)
+    vlm._status.update(checked=None)
 
 
 def _text(cid, label, kind="name", score=0.5, box=(0, 0, 10, 10)):

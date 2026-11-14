@@ -20,13 +20,13 @@ def ollama(monkeypatch):
         monkeypatch.setattr(config, "VLM_MODE", "auto")
         monkeypatch.setattr(config, "OLLAMA_URL", s.url)
         monkeypatch.setattr(config, "VLM_MODEL", "qwen3-vl:8b-instruct")
-        vlm._status.update(checked=0.0)
+        vlm._status.update(checked=None)
         return s
 
     yield start
     for s in servers:
         s.close()
-    vlm._status.update(checked=0.0)
+    vlm._status.update(checked=None)
 
 
 @pytest.mark.parametrize("mode,attempts", [

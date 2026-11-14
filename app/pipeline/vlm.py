@@ -62,7 +62,7 @@ SCHEMA = {
     "required": ["sign_texts", "clues", "features", "guesses"],
 }
 
-_status = {"checked": 0.0, "ok": False, "reason": "not checked"}
+_status = {"checked": None, "ok": False, "reason": "not checked"}
 
 
 def _http(path: str, payload: dict | None = None, timeout: float = 5.0) -> dict:
@@ -79,7 +79,7 @@ def status(refresh: bool = False) -> dict:
         return {"ok": False, "reason": "turned off (LEAKLENS_VLM=off)"}
     if config.MOCK_MODE:
         return {"ok": True, "reason": "mock", "model": "mock-vlm"}
-    if not refresh and time.monotonic() - _status["checked"] < 30:
+    if not refresh and _status["checked"] is not None and time.monotonic() - _status["checked"] < 30:
         return dict(_status)
     _status["checked"] = time.monotonic()
     try:

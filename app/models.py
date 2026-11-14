@@ -71,6 +71,6 @@ def warm_up() -> None:
     streetclip()
     from .pipeline.ocr_engines import get_engine
 
-    get_engine()
+    print(f"[leaklens] OCR engine: {get_engine().name}")
     if config.USE_GEOCLIP:
         geoclip()

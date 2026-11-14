@@ -73,6 +73,7 @@
   <h1>LeakLens</h1>
   <p>See what your photo gives away before you post it.</p>
   <span id="mockBadge" class="badge" hidden>mock mode</span>
+  <span id="ocrBadge" class="badge" style="border-color:var(--line);color:var(--muted)" hidden></span>
 </header>
 
 <main>
@@ -151,6 +152,7 @@ let currentFile = null, analysis = null, map = null, markers = [];
 
 fetch("/api/health").then(r => r.json()).then(h => {
   $("mockBadge").hidden = !h.mock;
+  if (h.ocr_engine && !h.mock) { $("ocrBadge").hidden = false; $("ocrBadge").textContent = "OCR: " + h.ocr_engine; }
   let saved = null;
   try { saved = localStorage.getItem("leaklens.lookup"); } catch (_) {}
   $("lookup").checked = saved === null ? !!h.lookup_default : saved === "1";

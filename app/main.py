@@ -71,7 +71,16 @@ def index():
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "mock": config.MOCK_MODE, "lookup_default": config.TEXT_LOOKUP}
+    engine = "mock"
+    if not config.MOCK_MODE:
+        try:
+            from .pipeline.ocr_engines import get_engine
+
+            engine = get_engine().name
+        except Exception as exc:
+            engine = f"unavailable ({exc})"
+    return {"ok": True, "mock": config.MOCK_MODE, "lookup_default": config.TEXT_LOOKUP,
+            "ocr_engine": engine}
 
 
 # `lookup` (search sign text on OpenStreetMap) defaults to the server

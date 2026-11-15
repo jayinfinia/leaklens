@@ -147,3 +147,32 @@ VLM_MAX_SIDE = int(os.getenv("LEAKLENS_VLM_MAX_SIDE", "1024"))
 VLM_NUM_CTX = int(os.getenv("LEAKLENS_VLM_NUM_CTX", "16384"))
 VLM_TIMEOUT = float(os.getenv("LEAKLENS_VLM_TIMEOUT", "180"))
 AI_AGREE_KM = 40  # a sign-text candidate this close to the AI's guess counts as agreement
+
+# ---------------------------------------------------------------- one final answer
+# GeoCLIP candidate list: many raw pins, grouped into ~city-sized clusters and
+# named offline with the bundled gazetteer (app/data/us_cities.csv).
+GEOCLIP_TOP_K = int(os.getenv("LEAKLENS_GEOCLIP_TOP_K", "40"))
+GEOCLIP_PINS_SHOWN = 5  # raw pins kept in Geolocation.points for the map
+CLUSTER_KM = float(os.getenv("LEAKLENS_CLUSTER_KM", "25"))
+MAX_CLUSTERS = 8
+
+# Second AI pass: the model picks among named candidate places (or "other").
+VLM_CHOOSE = os.getenv("LEAKLENS_VLM_CHOOSE", "1") == "1"
+CHOOSE_MAX_OPTIONS = int(os.getenv("LEAKLENS_CHOOSE_MAX_OPTIONS", "8"))
+CHOOSE_MIN_OPTIONS = 2
+
+# Fusion (app/pipeline/fuse.py). Every candidate is a place on the map; it
+# collects evidence from every source within FUSE_AGREE_KM. Weights are hand
+# set, not fitted: tune them on the benchmark. A strong sign-text match
+# always wins outright.
+FUSE_AGREE_KM = float(os.getenv("LEAKLENS_FUSE_AGREE_KM", "40"))
+FUSE_W_CHOOSER = 1.2    # x the chooser's confidence
+FUSE_W_AI = 1.0         # x the best first-pass AI confidence nearby
+FUSE_W_TEXT_WEAK = 0.4  # a possible sign-text match nearby
+FUSE_W_CLUSTER = 0.6    # x share of GeoCLIP's top-k mass in the nearby clusters
+FUSE_W_GEOCLIP = 0.8    # x GeoCLIP verification score at the spot (0-1)
+FUSE_W_STATE = 0.5      # x StreetCLIP prob of the spot's state / top state prob
+FUSE_W_AI_STATE = 0.3   # the spot is in the state the AI model named
+FUSE_W_AGREE = 0.4      # per extra independent source nearby (AI, sign text, GeoCLIP)
+FUSE_SCORE_FULL = 4.0   # a score this high is reported as ~90% confidence
+FUSE_MAX_CONF = 0.9

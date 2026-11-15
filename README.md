@@ -12,9 +12,11 @@ Stripping EXIF data isn't enough. A street sign in the background, a storefront,
 | 2. Visual clues | Draws boxes around location-revealing objects (street signs, house numbers, plates, storefronts, landmarks, transit signs) | OWLv2 (open-vocabulary detection) |
 | 2. Text | Reads the full photo, then re-reads every detected sign as a zoomed crop; merges words into whole signs, unstacks vertical marquee letters (PARAMOUNT), and weights text by what it reveals: city or street names, phone numbers and institutions count far more than "CLASS OF 2024" | Apple Vision (Live Text engine) on macOS, EasyOCR elsewhere |
 | 2. Scene | Flags whole-image signals with no single spot to blur (skyline, mountains, road markings, plants, architecture) | StreetCLIP |
-| 3. Geolocation | Guesses country, then US state, and drops pins on a map | StreetCLIP + GeoCLIP |
+| 3. Geolocation | Guesses country, then US state; GeoCLIP's top 40 pins are grouped into ~25 km clusters and named offline after the nearest city | StreetCLIP + GeoCLIP + bundled US gazetteer |
 | 3a. Local AI model (optional) | Reads every sign, lists clues and visible objects, and reasons to up to 3 candidate places, in two stages (clue extraction, then reasoning) like the GeoMiner attack. Its readings upgrade OCR; its guesses become search hints. Runs on your machine | Qwen3-VL via Ollama |
 | 3b. Sign-text lookup (opt-in) | Searches detected business and place names on OpenStreetMap, with the models' region guess as a hint. One word like "POPPY" matches many cities, so clues are used together: a candidate is confirmed when another sign in the photo also matches something within ~300 m, when it agrees with the AI model's guess, or (Bellingcat-style) when the objects in the photo, like a phone box or a butcher's, exist within 150 m of it. Matches are graded strong or possible, never overclaimed | Nominatim + Overpass |
+| 3c. AI second look (optional) | After the blind first pass, the AI model sees a shuffled list of 5-10 named candidate places (GeoCLIP clusters, its own guesses, possible sign-text matches, with StreetCLIP's top states as context) and picks one or answers "other: <place>". Skipped when a sign already matched a place | Qwen3-VL via Ollama |
+| 3d. Best guess | Fuses everything into one answer with a pin: GPS metadata, then a strong sign-text match, else each candidate place is scored by the AI pick and guesses near it, GeoCLIP's pins nearby and GeoCLIP's own photo-to-spot similarity, agreement with StreetCLIP's and the AI's state, and how many independent sources agree | `app/pipeline/fuse.py` |
 | 4. Attribution | Blurs each clue on its own and measures how much the top guess weakens, so you see which clue gave it away | StreetCLIP (batched) |
 | 5. Risk + fix | Explainable 0-100 score. **Make it safe** blurs the fewest clues needed to reach low risk; or pick clues yourself. Everything is re-checked after | |
 
@@ -89,6 +91,10 @@ All settings live in `app/config.py` and can be overridden with environment vari
 | `LEAKLENS_DETECT_THRESHOLD` | `0.3` | OWLv2 confidence cutoff |
 | `LEAKLENS_VLM` | `auto` | `auto` uses the local AI model when Ollama has it; `off` disables |
 | `LEAKLENS_VLM_MODEL` | `qwen3-vl:8b-instruct` | Any Ollama vision model. Thinking builds (plain `qwen3-vl:8b`) work but are slower |
+| `LEAKLENS_VLM_CHOOSE` | `1` | AI second look: pick among named candidate places (one more AI call per photo) |
+| `LEAKLENS_GEOCLIP_TOP_K` | `40` | GeoCLIP pins used as candidates (clustered; 5 are shown on the map) |
+| `LEAKLENS_CLUSTER_KM` | `25` | Pins this close form one candidate place |
+| `LEAKLENS_FUSE_AGREE_KM` | `40` | Sources this close to a candidate count as agreeing with it |
 | `LEAKLENS_OLLAMA_URL` | `http://localhost:11434` | Where Ollama runs |
 | `LEAKLENS_TEXT_LOOKUP` | `0` | Default for the OpenStreetMap sign-text lookup (the UI has a toggle) |
 | `LEAKLENS_OCR_MAX_SIDE` | `2048` | OCR reads a sharper copy than the vision models |
@@ -101,11 +107,13 @@ All settings live in `app/config.py` and can be overridden with environment vari
 | `LEAKLENS_ATTRIBUTION_MAX` | `8` | Max clues to attribute (one extra image pass each) |
 | `LEAKLENS_SCENE_MIN_PROB` | `0.15` | Cutoff for reporting scene signals |
 
+Fusion weights (`FUSE_*` in `app/config.py`) are hand set, not fitted; tune them with the benchmark. The best guess's confidence is a squashed fusion score, not a calibrated probability.
+
 Clue categories and scene cues (prompts, weights and explanations) are plain dicts (`CLUE_CATEGORIES`, `SCENE_CUES`), so tuning detection means editing text rather than code.
 
 ## API
 
-- `POST /api/analyze?explain=true`: multipart `file` → metadata, clues with boxes and impact, scene signals, geolocation guesses, risk score with every contributing factor
+- `POST /api/analyze?explain=true`: multipart `file` → metadata, clues with boxes and impact, scene signals, geolocation guesses, risk score with every contributing factor, and `best`: one final location (lat, lon, place, source, confidence, why)
 - `POST /api/safe`: multipart `file` → blurs the fewest clues needed to reach low risk; returns the clean JPEG (base64), which clues were blurred, risk before, a full analysis after, and a note
 - `POST /api/scrub`: multipart `file` + `boxes` (JSON list of `[x0, y0, x1, y1]`) → same response, for clues the user picked
 - `GET /api/health`
@@ -123,7 +131,11 @@ app/
     detect.py        layer 2: OWLv2 clue boxes
     ocr.py           layer 2: readable text
     scene.py         layer 2: scene signals with no box
-    geolocate.py     layer 3: StreetCLIP labels (cached text, batched images), GeoCLIP pins
+    geolocate.py     layer 3: StreetCLIP labels (cached text, batched images), GeoCLIP pins,
+                     clusters and GeoScorer (scores any coordinate against the photo)
+    gazetteer.py     offline nearest-city and "City, State" lookup (app/data/us_cities.csv)
+    vlm.py           local AI model: blind first pass (ask) and candidate chooser (choose)
+    fuse.py          one best guess from every signal (weights in config.py, FUSE_*)
     attribution.py   layer 4: which clue gave it away
     risk.py          layer 5: explainable score
     safe.py          layer 5: fewest blurs to reach low risk
@@ -165,6 +177,9 @@ This project builds on the following work. Thank you to the authors.
 - [DotScramble](https://github.com/kareem2099/DotScramble): automatic plate and OCR text redaction.
 
 **Research and tools**
+- **US city gazetteer** (`app/data/us_cities.csv`): the 2,620 US places with population of 20,000 or more, from [GeoNames](https://www.geonames.org/) (`cities15000`), licensed **CC BY 4.0**, taken from the MIT-licensed [geonamescache](https://github.com/yaph/geonamescache) package (v3.0.2 on PyPI). Reduced to name, state, latitude, longitude and population.
+- *GeoRanker* (NeurIPS 2025, [code](https://github.com/Applied-Machine-Learning-Lab/GeoRanker), Apache-2.0) and *Img2Loc* (SIGIR 2024): a small VLM does far better choosing among retrieved candidates than guessing blind, which motivates the AI second look. Ideas only; no code copied.
+- *G3* (NeurIPS 2024, [code](https://github.com/Applied-Machine-Learning-Lab/G3), Apache-2.0): verifying candidate places with an image-to-GPS encoder, done here with GeoCLIP. Ideas only; no code copied.
 - Bellingcat. *OpenStreetMap Search* ([code](https://github.com/bellingcat/osm-search), MIT). The object proximity search follows its approach of finding places where several features sit close together.
 - Qwen team. *Qwen3-VL* (Apache-2.0), run through [Ollama](https://ollama.com).
 - Ollama structured-output and thinking-model behavior, and the content-or-thinking fallback, follow fixes in public projects (e.g. datalab-to/marker's Ollama service for qwen3-vl).

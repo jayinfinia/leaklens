@@ -1,19 +1,19 @@
 """Layer 3: the "attack". Where do public models think this photo was taken?
 
 StreetCLIP gives readable labels (country, then US state).
-GeoCLIP gives coordinates for the map pin.
+GeoCLIP gives coordinates: its top 40 pins are grouped into ~25 km clusters
+and named offline (gazetteer.py), and GeoScorer rates any coordinate
+against the photo, which fuse.py uses to check candidate places.
 
 Text embeddings are computed once and cached, and images are embedded in
 batches, so re-scoring many edited copies of a photo (clue attribution,
 "make it safe") costs one image forward pass each.
 """
 
-import os
-import tempfile
 from functools import lru_cache
 
 from .. import config
-from ..schemas import Geolocation, GuessLabel, GuessPoint
+from ..schemas import Geolocation, GuessLabel, GuessPoint, PlaceCluster
 from . import mock
 
 COUNTRIES = [
@@ -128,33 +128,147 @@ def geolocate_many(images: list, image_embeds=None) -> list[Geolocation]:
     return out
 
 
-def _points(image, top_k: int = 5) -> list[GuessPoint]:
-    import torch
+class GeoScorer:
+    """GeoCLIP on one image: the image is embedded once, then any coordinates
+    can be scored against it (GeoCLIP's image <-> GPS similarity, the
+    "geo-verification" step of G3, NeurIPS 2024).
 
-    from ..models import geoclip
+    GeoCLIP logits aren't probabilities, so a spot's score is its rank among
+    GeoCLIP's 100K-point world gallery on a log scale: 1.0 = better than every
+    gallery point, 0.8 = top 10, 0.6 = top 100, 0.4 = top 1,000, 0 = bottom.
+    """
 
-    model = geoclip()
-    fd, path = tempfile.mkstemp(suffix=".jpg")  # GeoCLIP.predict wants a path
-    os.close(fd)
-    try:
-        image.convert("RGB").save(path, quality=92)
+    CHUNK = 8192
+
+    def __init__(self, image, model=None):
+        import torch
+
+        from ..models import geoclip
+
+        self.model = model if model is not None else geoclip()
+        m = self.model
+        self.device = m.logit_scale.device
         with torch.no_grad():
-            gps, probs = model.predict(path, top_k=top_k)
-    finally:
-        os.remove(path)
-    return [GuessPoint(lat=round(float(g[0]), 5), lon=round(float(g[1]), 5), prob=round(float(p), 4))
-            for g, p in zip(gps.tolist(), probs.tolist())]
+            px = m.image_encoder.preprocess_image(image.convert("RGB")).to(self.device)
+            f = m.image_encoder(px)
+            self.image_features = f / f.norm(dim=-1, keepdim=True)
+            self.scale = m.logit_scale.exp()
+            self.gallery = m.gps_gallery
+            self.gallery_logits = self._logits(self.gallery)  # [N]
+        self.sorted_logits = self.gallery_logits.sort().values.cpu()
+
+    def _logits(self, coords):
+        import torch
+
+        out = []
+        for i in range(0, len(coords), self.CHUNK):
+            loc = self.model.location_encoder(coords[i:i + self.CHUNK].to(self.device).float())
+            loc = loc / loc.norm(dim=-1, keepdim=True)
+            out.append((self.scale * self.image_features @ loc.T)[0])
+        return torch.cat(out) if out else torch.zeros(0)
+
+    def points(self, top_k: int) -> list[GuessPoint]:
+        """Top-k gallery points, like GeoCLIP.predict."""
+        probs = self.gallery_logits.softmax(dim=-1)
+        top = probs.topk(min(top_k, len(probs)))
+        gps = self.gallery.index_select(0, top.indices).cpu().tolist()
+        return [GuessPoint(lat=round(float(g[0]), 5), lon=round(float(g[1]), 5), prob=round(float(p), 4))
+                for g, p in zip(gps, top.values.cpu().tolist())]
+
+    def score(self, coords: list[tuple[float, float]]) -> list[float]:
+        import math
+
+        import torch
+
+        if not coords:
+            return []
+        with torch.no_grad():
+            logits = self._logits(torch.tensor(coords, dtype=torch.float32)).cpu()
+        n = len(self.sorted_logits)
+        above = n - torch.searchsorted(self.sorted_logits, logits, right=True)  # gallery points beating it
+        return [round(max(0.0, 1.0 - math.log10(1 + int(a)) / math.log10(n)), 4) for a in above.tolist()]
 
 
-def geolocate(image, image_embeds=None) -> Geolocation:
+class MockScorer:
+    """LEAKLENS_MOCK=1: scores fall off with distance from the mock pin."""
+
+    def __init__(self, image):
+        self.geo = mock.geolocation(image)
+
+    def points(self, top_k: int) -> list[GuessPoint]:
+        return self.geo.points[:top_k]
+
+    def score(self, coords: list[tuple[float, float]]) -> list[float]:
+        import math
+
+        from .gazetteer import km
+
+        p = self.geo.points[0]
+        return [round(math.exp(-km(lat, lon, p.lat, p.lon) / 400), 4) for lat, lon in coords]
+
+
+def scorer(image):
+    """A GeoCLIP scorer for this image, or None when GeoCLIP is off or fails."""
     if config.MOCK_MODE:
-        return mock.geolocation(image)
+        return MockScorer(image)
+    if not config.USE_GEOCLIP:
+        return None
+    try:
+        return GeoScorer(image)
+    except Exception as exc:  # keep the demo alive if GeoCLIP misbehaves
+        print(f"[leaklens] GeoCLIP failed: {exc}")
+        return None
+
+
+def score_points(image, coords: list[tuple[float, float]]) -> list[float]:
+    """GeoCLIP verification score (0-1) of each (lat, lon) for this image."""
+    s = scorer(image)
+    return s.score(coords) if s else [0.0] * len(coords)
+
+
+def cluster(points: list[GuessPoint], km_radius: float | None = None,
+            limit: int | None = None) -> list[PlaceCluster]:
+    """Greedy clustering, most probable pin first: a pin within `km_radius` of
+    a cluster's first pin joins it. Centers are probability-weighted; each
+    cluster is named after the nearest city in the offline gazetteer."""
+    from .gazetteer import describe, km
+
+    radius = config.CLUSTER_KM if km_radius is None else km_radius
+    groups: list[list[GuessPoint]] = []
+    for p in sorted(points, key=lambda p: p.prob, reverse=True):
+        g = next((g for g in groups if km(g[0].lat, g[0].lon, p.lat, p.lon) <= radius), None)
+        if g is None:
+            groups.append([p])
+        else:
+            g.append(p)
+    out = []
+    for g in groups:
+        w = sum(p.prob for p in g) or 1e-9
+        lat = sum(p.lat * p.prob for p in g) / w
+        lon = sum(p.lon * p.prob for p in g) / w
+        place, dist = describe(lat, lon)
+        out.append(PlaceCluster(lat=round(lat, 5), lon=round(lon, 5), prob=round(sum(p.prob for p in g), 4),
+                                n=len(g), place=place, km=dist))
+    out.sort(key=lambda c: c.prob, reverse=True)
+    return out[: (config.MAX_CLUSTERS if limit is None else limit)]
+
+
+def geolocate(image, image_embeds=None, geo_scorer=None) -> Geolocation:
+    """Labels from StreetCLIP; pins and named pin clusters from GeoCLIP.
+    Pass a scorer (see `scorer`) to reuse its image embedding later."""
+    if config.MOCK_MODE:
+        geo = mock.geolocation(image)
+        geo.clusters = cluster(geo.points)
+        return geo
 
     geo = geolocate_many([image], image_embeds)[0]
-    if config.USE_GEOCLIP:
+    s = geo_scorer if geo_scorer is not None else scorer(image)
+    if s is not None:
         try:
-            geo.points = _points(image)
-        except Exception as exc:  # keep the demo alive if GeoCLIP misbehaves
+            pins = s.points(config.GEOCLIP_TOP_K)
+            geo.points = pins[: config.GEOCLIP_PINS_SHOWN]
+            geo.clusters = cluster(pins)
+        except Exception as exc:
             print(f"[leaklens] GeoCLIP failed: {exc}")
     return geo
 

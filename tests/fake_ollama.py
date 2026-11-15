@@ -11,6 +11,14 @@ reported against qwen3-vl and other thinking models:
   long_think    thinking build: with a small num_predict it only thinks
                 (done_reason=length, content empty); with room it answers
   extra_data    two JSON objects back to back (json.loads: "Extra data")
+
+The chooser (second pass, vlm.choose) is recognized by its prompt. Its
+answer is set with `choice`:
+
+  pick          picks the listed option that mentions Huntsville (default)
+  other         "other: Decatur, Alabama" (a place not on the list)
+  none          the chooser comes back empty every time
+The failure `mode` applies to chooser answers too.
 """
 
 import json
@@ -21,14 +29,25 @@ ANSWER = {
     "sign_texts": ["POPPY & PARLIAMENT", "TELEPHONE", "Butcher Shoppe"],
     "clues": [{"clue": "red British-style phone box", "suggests": "a themed pub district in a US city"}],
     "features": ["telephone box", "butcher shop", "pub or bar"],
+    "state_evidence": ["no plates visible; 256 phone number on the butcher's sign"],
+    "state": "Alabama",
     "guesses": [{"place": "Huntsville, Alabama, USA", "confidence": 0.62,
                  "why": "POPPY & PARLIAMENT is a known pub in downtown Huntsville"}],
 }
 
 
+CHOOSER_MARK = "Similar photos were taken near these places"
+
+
+def options_in(prompt: str) -> list[str]:
+    """The candidate list from a chooser prompt, in the order shown."""
+    tail = prompt.split(CHOOSER_MARK, 1)[1].split("\n\n", 1)[0]
+    return [line[2:] for line in tail.splitlines() if line.startswith("- ")]
+
+
 class FakeOllama:
-    def __init__(self, mode="good", model="qwen3-vl:8b"):
-        self.mode, self.model, self.requests = mode, model, []
+    def __init__(self, mode="good", model="qwen3-vl:8b", choice="pick"):
+        self.mode, self.model, self.choice, self.requests = mode, model, choice, []
         fake = self
 
         class H(BaseHTTPRequestHandler):
@@ -55,8 +74,29 @@ class FakeOllama:
         self.url = f"http://127.0.0.1:{self.server.server_port}"
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
 
+    @staticmethod
+    def is_chooser(req) -> bool:
+        return CHOOSER_MARK in req["messages"][0]["content"]
+
+    def chooser_answer(self, req) -> dict:
+        opts = options_in(req["messages"][0]["content"])
+        if self.choice == "other":
+            pick = "other: Decatur, Alabama"
+        else:
+            pick = next((o for o in opts if "Huntsville" in o), opts[0] if opts else "")
+        return {"state": "Alabama", "evidence": "POPPY & PARLIAMENT is a pub in downtown Huntsville",
+                "choice": pick, "confidence": 0.7}
+
     def reply(self, req):
+        if self.is_chooser(req):
+            if self.choice == "none":
+                return {"message": {"role": "assistant", "content": ""}, "done": True, "done_reason": "stop"}
+            full = json.dumps(self.chooser_answer(req))
+            return self._shape(req, full, cut=full[: full.index('"confidence"') + 14])
         full = json.dumps(ANSWER)
+        return self._shape(req, full, cut=full[: full.index("known pub") + 5])
+
+    def _shape(self, req, full, cut):
         fmt = req.get("format")
         msg = {"role": "assistant", "content": full}
         if self.mode == "thinking":
@@ -68,7 +108,7 @@ class FakeOllama:
         elif self.mode == "prose":
             msg["content"] = "Here is my analysis:\n```json\n" + full + "\n```\nHope this helps."
         elif self.mode == "truncated":
-            msg["content"] = full[: full.index("known pub") + 5]
+            msg["content"] = cut
             return {"message": msg, "done": True, "done_reason": "length"}
         elif self.mode == "long_think":
             if (req.get("options") or {}).get("num_predict", 0) < 4000:

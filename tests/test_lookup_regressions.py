@@ -270,12 +270,20 @@ def test_birmingham_16th_st_n_is_not_strong_in_oklahoma_city(osm):
     assert best.source != "text"
 
 
-def test_common_street_with_one_clear_state_is_strong(osm):
-    """Rule for common names: strong when evidence other than the AI model
-    puts real weight on a state that has a single such street."""
+def test_common_street_stays_weak_on_image_evidence_alone(osm):
+    """Image models alone can't make a common street name strong: on the real
+    benchmark StreetCLIP put birmingham-1 in Oklahoma. It stays a possible match
+    that the fusion can still use."""
     matches, _ = run_photo(["E Lake St"], ["E Lake St"], "Seattle, WA", 0.6, geo_with(("Minnesota", 0.7)))
     (m,) = matches
-    assert m.confidence == "strong" and "Minneapolis" in m.name
+    assert m.confidence == "weak" and "Minneapolis" in m.name
+
+
+def test_birmingham_16th_st_n_with_confident_wrong_streetclip(osm):
+    # Real run: StreetCLIP said Oklahoma with high confidence and the AI said Oklahoma City.
+    matches, best = run_photo(["16th Si N", "16th St N"], ["16th St N"], "Oklahoma City, OK", 0.8,
+                              geo_with(("Oklahoma", 0.8), ("Alabama", 0.05)))
+    assert not strong(matches)
 
 
 def test_minneapolis_e_lake_st_is_only_weak_support(osm):

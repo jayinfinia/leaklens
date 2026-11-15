@@ -901,9 +901,13 @@ def _vet(text: str, hits: tuple, hinted: bool, geo: Geolocation, ev: Evidence, r
         return best, conf, note, generic, ()
     if generic:
         in_state = tuple(h for h in hits if _state(h) == st)
-        if st and ev.indep.get(st, 0.0) >= config.GENERIC_STREET_PRIOR_MIN and _spread_km(in_state) <= AMBIGUOUS_KM:
+        # Only text read in the photo (a phone area code, a state on a sign) may pin a common street
+        # name to a state. Image models guess the wrong state too often (e.g. "16th St N" in
+        # Birmingham, AL went to Oklahoma City because StreetCLIP said Oklahoma).
+        written = st and (st in ev.phone_states or st in ev.text_states)
+        if written and _spread_km(in_state) <= AMBIGUOUS_KM:
             return best, "strong", (f"A common street name, but the only one found in {_where(best)}, "
-                                    "where the rest of the photo points."), False, ()
+                                    "which a phone number or sign in the photo also names."), False, ()
         return best, "weak", ("A common street name that many towns have; it needs a cross street "
                               "or other evidence."), True, ()
     if ev.phone_states and st and st not in ev.phone_states and st not in ev.text_states:

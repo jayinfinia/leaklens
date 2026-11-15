@@ -78,7 +78,15 @@ python scripts/benchmark.py run       # analyze + Make it safe on each, logs to 
 python scripts/benchmark.py run --lookup   # also search sign text on OpenStreetMap
 ```
 
-It reports country and state accuracy (top 1 and top 5), map-pin distance error (median, % within 25/200/750 km), risk before and after Make it safe, and timing. Results go to `results.csv` and `summary.md`, with photo credits. EXIF is stripped first so the numbers reflect what the pixels give away (`--keep-exif` to include it).
+It reports country and state accuracy (top 1 and top 5), map-pin distance error (median, % within 25/200/750 km), risk before and after Make it safe, and timing. Results go to `results.csv` and `summary.md`, with photo credits. EXIF is stripped first so the numbers reflect what the pixels give away (`--keep-exif` to include it). Ground-truth corrections for single photos go in `benchmark/truth_overrides.csv` (applied at run time).
+
+Each run also saves every photo's evidence (`evidence/*.json`), so the fusion can be re-scored offline without the models:
+
+```bash
+python scripts/fuse_replay.py benchmark/results/<run>/evidence             # per-photo winners, oracle bound
+python scripts/fuse_replay.py <evidence> --text drop --analyze             # ignore sign text; which signals predict a right answer
+python scripts/fuse_replay.py <evidence> --grid FUSE_W_CLUSTER=1.5,1.0 --grid FUSE_W_GEOCLIP=0.2,0.4   # in-sample and leave-one-out
+```
 
 ## Configuration
 
@@ -107,7 +115,7 @@ All settings live in `app/config.py` and can be overridden with environment vari
 | `LEAKLENS_ATTRIBUTION_MAX` | `8` | Max clues to attribute (one extra image pass each) |
 | `LEAKLENS_SCENE_MIN_PROB` | `0.15` | Cutoff for reporting scene signals |
 
-Fusion weights (`FUSE_*` in `app/config.py`) are hand set, not fitted; tune them with the benchmark. The best guess's confidence is a squashed fusion score, not a calibrated probability.
+Fusion weights (`FUSE_*` in `app/config.py`) were checked on 35 benchmark photos with `scripts/fuse_replay.py`; that is a small sample, so treat them as rough. The best guess's confidence is a squashed fusion score, not a calibrated probability.
 
 Clue categories and scene cues (prompts, weights and explanations) are plain dicts (`CLUE_CATEGORIES`, `SCENE_CUES`), so tuning detection means editing text rather than code.
 

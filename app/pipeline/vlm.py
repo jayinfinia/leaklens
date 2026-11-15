@@ -374,11 +374,28 @@ def _listing(items, empty="none") -> str:
     return "; ".join(items) if items else empty
 
 
-def choose_prompt(reading: AIReading | None, options: list[str], states: list[str] | None = None) -> str:
+def _state_context(states) -> str:
+    """StreetCLIP's likely states, as names or GuessLabels (name + prob). When
+    it is confident, say so plainly: on the benchmark its top state was right
+    19 of 20 times at >= 50%, while the AI model put a Minneapolis street in
+    Seattle."""
+    if not states:
+        return ""
+    names = [getattr(s, "name", s) for s in states]
+    top = states[0]
+    prob = getattr(top, "prob", None)
+    if prob is not None and prob >= config.FUSE_STATE_SURE:
+        return (f"- a street-photo model is confident this is in {top.name} ({prob:.0%}); pick a place in "
+                f"another state only if a sign, plate or phone number clearly says so "
+                f"(next most likely: {', '.join(names[1:]) or 'none'})\n")
+    return f"- a street-photo model's most likely US states: {', '.join(names)}\n"
+
+
+def choose_prompt(reading: AIReading | None, options: list[str], states: list | None = None) -> str:
     r = reading or AIReading(model="")
     clues = [f"{c.get('clue')} ({c.get('suggests')})" for c in r.clues[:6]]
     guesses = [f"{g.place} ({g.confidence:.0%})" for g in r.guesses]
-    context = (f"- a street-photo model's most likely US states: {', '.join(states)}\n" if states else "")
+    context = _state_context(states)
     return CHOOSE_PROMPT.format(
         signs=_listing(f'"{t}"' for t in r.sign_texts[:8]), clues=_listing(clues),
         evidence=_listing(r.state_evidence[:4] + ([f"settled on {r.state}"] if r.state else [])),
@@ -429,7 +446,7 @@ def parse_choice(data: dict, options: list[str]) -> AIChoice:
 
 
 def choose(image, reading: AIReading | None, options: list[str],
-           states: list[str] | None = None) -> AIChoice:
+           states: list | None = None) -> AIChoice:
     """Second AI pass: pick one of `options` (already shuffled) or name another."""
     if config.MOCK_MODE:
         pick = next((o for o in options if "charlottesville" in o.lower()), options[0] if options else "")

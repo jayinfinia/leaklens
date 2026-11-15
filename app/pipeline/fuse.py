@@ -8,10 +8,13 @@ Order of trust:
      AI guesses, possible sign-text matches, the share of GeoCLIP's pins
      nearby, GeoCLIP's own similarity between the photo and that spot
      (geo-verification, as in G3, NeurIPS 2024), whether StreetCLIP and the AI
-     put the photo in that state, and how many independent sources agree.
+     put the photo in that state, and how many independent sources agree. A
+     spot outside StreetCLIP's top 3 states loses points when StreetCLIP is
+     confident.
   4. Nothing else: the most likely state's population center, at low confidence.
 
-Weights live in config (FUSE_*). They are hand set; fit them on the benchmark.
+Weights live in config (FUSE_*), checked offline on saved benchmark evidence
+with scripts/fuse_replay.py.
 This module also builds the candidate list for the AI chooser (vlm.choose)
 and puts places on the map offline (gazetteer.py).
 """
@@ -120,6 +123,21 @@ def options(geo: Geolocation, ai: AIReading | None, matches: list[TextMatch],
     return out
 
 
+def first_pass_confirmed(geo: Geolocation, ai: AIReading | None) -> bool:
+    """True when GeoCLIP already backs the AI's first guess: at least
+    CHOOSE_SKIP_MASS of its pin mass lies within FUSE_AGREE_KM of it. On the
+    benchmark the chooser then always repeated the first guess, so the second
+    AI call is skipped (it costs several seconds)."""
+    if ai is None or ai.error or not geo.clusters:
+        return False
+    g = next((g for g in ai.guesses if g.lat is not None), None)
+    if g is None:
+        return False
+    total = sum(c.prob for c in geo.clusters) or 1.0
+    near = sum(c.prob for c in geo.clusters if gz.km(c.lat, c.lon, g.lat, g.lon) <= config.FUSE_AGREE_KM)
+    return near / total >= config.CHOOSE_SKIP_MASS
+
+
 def locate_choice(choice: AIChoice, opts: list[Option], lookup: bool = False, us: bool = True) -> AIChoice:
     """Coordinates for the chooser's pick: the option's own, else the gazetteer,
     else (only when the user allowed map search) OpenStreetMap."""
@@ -188,6 +206,8 @@ def score_candidates(cands: list[Candidate], geo: Geolocation, ai: AIReading | N
     """Score each candidate with the evidence near it. `verify` holds GeoCLIP's
     verification score for each candidate's spot (or None)."""
     states = _state_scores(geo)
+    top3 = set(list(states)[:3])
+    sure = bool(states) and geo.region[0].prob >= config.FUSE_STATE_SURE
     ai_states = set()
     if ai is not None and not ai.error:
         for s in (ai.state, ai.choice.state if ai.choice else ""):
@@ -212,6 +232,9 @@ def score_candidates(cands: list[Candidate], geo: Geolocation, ai: AIReading | N
             "state": config.FUSE_W_STATE * states.get(code, 0.0),
             "ai_state": config.FUSE_W_AI_STATE * (code in ai_states),
             "agree": config.FUSE_W_AGREE * max(0, len(agreeing) - 1),
+            # StreetCLIP is rarely wrong about the state when it is confident.
+            # A rural spot far from any listed city takes the nearest one's state.
+            "off_state": -config.FUSE_W_OFF_STATE * (sure and (code or gz.state_at(c.lat, c.lon, 300)) not in top3),
         }
         c.support, c.parts, c.score = sup, parts, sum(parts.values())
     return cands

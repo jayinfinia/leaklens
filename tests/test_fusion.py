@@ -274,3 +274,97 @@ def test_chooser_can_be_turned_off(photo_no_gps, monkeypatch):
     raw, upright = load_image(photo_no_gps)
     a = analyze(raw, upright, lookup=False, use_ai=True)
     assert a.ai.choice is None and a.best.source == "ai" and a.best.place == "Charlottesville, VA"
+
+
+# ------------------------------------------------------------ fusion rules from the benchmark evidence
+MINNEAPOLIS = (44.9778, -93.2650)
+SEATTLE = (47.6062, -122.3321)
+PHOENIX = (33.4484, -112.0740)
+SANTA_BARBARA = (34.4208, -119.6982)
+
+
+def test_confident_streetclip_state_sinks_an_ai_guess_in_another_state():
+    """minneapolis-1: StreetCLIP 98% Minnesota and GeoCLIP pins in Minneapolis,
+    but both AI passes said Seattle."""
+    ai = AIReading(model="m", state="Washington",
+                   guesses=[AIGuess(place="Seattle, WA", confidence=0.95, lat=SEATTLE[0], lon=SEATTLE[1])],
+                   choice=AIChoice(place="Seattle, WA", confidence=1.0, state="Washington",
+                                   lat=SEATTLE[0], lon=SEATTLE[1]))
+    geo = Geolocation(country=[GuessLabel(name="United States", prob=0.98)],
+                      region=[GuessLabel(name="Minnesota", prob=0.98), GuessLabel(name="South Dakota", prob=0.007),
+                              GuessLabel(name="North Dakota", prob=0.004)],
+                      clusters=[PlaceCluster(lat=44.95, lon=-93.22, prob=0.3, place="Minneapolis, MN"),
+                                PlaceCluster(lat=46.79, lon=-92.10, prob=0.25, place="Duluth, MN")])
+    b = fuse.fuse(geo, ai, [])
+    assert b.source == "geoclip" and gz.km(b.lat, b.lon, *MINNEAPOLIS) < 25
+    seattle = next(c for c in fuse.LAST["candidates"] if c["source"] == "chooser")
+    assert seattle["parts"]["off_state"] == -config.FUSE_W_OFF_STATE < 0
+
+
+def test_off_state_penalty_needs_a_confident_streetclip():
+    geo = us_geo(("Virginia", "North Carolina", "Maryland"))  # top state only 40%
+    cands = fuse.score_candidates([fuse.Candidate(*DENVER, "Denver, CO", "ai", 0.5)], geo, None)
+    assert cands[0].parts["off_state"] == 0
+    geo.region[0].prob = 0.6
+    cands = fuse.score_candidates([fuse.Candidate(*DENVER, "Denver, CO", "ai", 0.5)], geo, None)
+    assert cands[0].parts["off_state"] < 0
+    cands = fuse.score_candidates([fuse.Candidate(*RICHMOND, "Richmond, VA", "ai", 0.5)], geo, None)
+    assert cands[0].parts["off_state"] == 0
+
+
+def test_dominant_geoclip_cluster_beats_the_ai_alone():
+    """phoenix-2: three quarters of GeoCLIP's pins in Phoenix, the AI (both
+    passes) said Santa Barbara with nothing else behind it."""
+    ai = AIReading(model="m", state="California", guesses=[
+        AIGuess(place="Santa Barbara, CA", confidence=0.8, lat=SANTA_BARBARA[0], lon=SANTA_BARBARA[1]),
+        AIGuess(place="Phoenix, AZ", confidence=0.4, lat=PHOENIX[0], lon=PHOENIX[1])],
+        choice=AIChoice(place="Santa Barbara, CA", confidence=0.9, state="California",
+                        lat=SANTA_BARBARA[0], lon=SANTA_BARBARA[1]))
+    geo = Geolocation(country=[GuessLabel(name="Saudi Arabia", prob=0.38)],
+                      clusters=[PlaceCluster(lat=33.42, lon=-111.83, prob=0.6, place="Tempe Junction, AZ"),
+                                PlaceCluster(lat=32.7, lon=-115.5, prob=0.1, place="Calexico, CA")])
+    b = fuse.fuse(geo, ai, [])
+    assert gz.km(b.lat, b.lon, *PHOENIX) < 40 and b.place != "Santa Barbara, CA"
+
+
+def test_ai_backed_by_some_geoclip_pins_beats_a_bigger_cluster_elsewhere():
+    """miami-2: GeoCLIP split between Santa Monica and Miami Beach; the AI said Miami."""
+    miami = (25.7907, -80.1300)
+    ai = AIReading(model="m", state="Florida",
+                   guesses=[AIGuess(place="Miami Beach, FL", confidence=0.8, lat=miami[0], lon=miami[1])])
+    geo = us_geo(("Nevada", "California", "Arizona"),
+                 [PlaceCluster(lat=34.02, lon=-118.49, prob=0.56, place="Santa Monica, CA"),
+                  PlaceCluster(lat=25.79, lon=-80.13, prob=0.44, place="Miami Beach, FL")])
+    b = fuse.fuse(geo, ai, [])
+    assert b.place == "Miami Beach, FL" and set(b.supports) == {"ai", "geoclip"}
+
+
+def test_first_pass_confirmed_by_geoclip():
+    ai = AIReading(model="m", guesses=[AIGuess(place="Richmond, VA", confidence=0.6, lat=RICHMOND[0],
+                                               lon=RICHMOND[1])])
+    near = PlaceCluster(lat=37.6, lon=-77.4, prob=0.3, place="Richmond, VA")
+    far = PlaceCluster(lat=DENVER[0], lon=DENVER[1], prob=0.7, place="Denver, CO")
+    assert fuse.first_pass_confirmed(us_geo(clusters=[near, far]), ai)  # 30% >= 25%
+    assert not fuse.first_pass_confirmed(us_geo(clusters=[near.model_copy(update={"prob": 0.1}), far]), ai)
+    assert not fuse.first_pass_confirmed(us_geo(clusters=[far]), ai)
+    assert not fuse.first_pass_confirmed(us_geo(clusters=[near]), None)
+    assert not fuse.first_pass_confirmed(us_geo(), ai)
+
+
+def test_chooser_is_skipped_when_geoclip_backs_the_first_guess(photo_no_gps, monkeypatch):
+    from app.pipeline import analyze, load_image
+
+    raw, upright = load_image(photo_no_gps)
+    monkeypatch.setattr(config, "CHOOSE_SKIP_MASS", 0.1)  # the mock has 16% of its pins near Charlottesville
+    a = analyze(raw, upright, lookup=False, use_ai=True)
+    assert a.ai.choice is None and a.best.place == "Charlottesville, VA" and a.best.source == "ai"
+
+
+def test_choose_prompt_stresses_a_confident_streetclip_state():
+    r = AIReading(model="m", guesses=[AIGuess(place="Seattle, WA", confidence=0.95)])
+    sure = [GuessLabel(name="Minnesota", prob=0.98), GuessLabel(name="South Dakota", prob=0.01)]
+    p = vlm.choose_prompt(r, ["Seattle, WA", "Minneapolis, MN"], sure)
+    assert "confident this is in Minnesota (98%)" in p and "South Dakota" in p
+    unsure = [GuessLabel(name="Minnesota", prob=0.3), GuessLabel(name="Iowa", prob=0.2)]
+    p = vlm.choose_prompt(r, ["Seattle, WA"], unsure)
+    assert "most likely US states: Minnesota, Iowa" in p and "confident" not in p

@@ -52,7 +52,8 @@ def geolocation(image) -> Geolocation:
     if has_detail(image):
         country = [GuessLabel(name="United States", prob=0.81), GuessLabel(name="Canada", prob=0.07)]
         region = [GuessLabel(name="Virginia", prob=0.44), GuessLabel(name="Maryland", prob=0.18)]
-        points = [GuessPoint(lat=38.9, lon=-77.04, prob=0.31)]
+        # GeoCLIP's pins split between D.C. and (a few) Charlottesville
+        points = [GuessPoint(lat=38.9, lon=-77.04, prob=0.31), GuessPoint(lat=38.04, lon=-78.49, prob=0.06)]
         summary = "Likely Virginia, USA (44% within the US)"
     else:
         country = [GuessLabel(name="United States", prob=0.38), GuessLabel(name="Canada", prob=0.21)]

@@ -188,8 +188,9 @@ def test_chooser_reports_failure(ollama):
 def test_end_to_end_best_guess_with_fake_ollama_and_geoclip(ollama, monkeypatch, choice):
     """Tiny real-architecture vision models, a fake GeoCLIP whose pins sit in
     Nashville, and the fake Ollama. No map search: the AI's Huntsville guess
-    is placed offline, the chooser sees named GeoCLIP clusters plus that
-    guess, and fusion returns one best guess."""
+    is placed offline, the chooser (GeoCLIP does not back the first guess, so
+    it runs) sees named GeoCLIP clusters plus that guess, and fusion returns
+    one best guess."""
     pytest.importorskip("torch")
     import importlib
 
@@ -241,10 +242,11 @@ def test_end_to_end_best_guess_with_fake_ollama_and_geoclip(ollama, monkeypatch,
     assert ch and not ch.error and "Huntsville, AL" in ch.options and len(ch.options) >= 2
     assert a.best is not None and 0 < a.best.confidence <= config.FUSE_MAX_CONF
     if choice == "pick":
-        assert ch.place == "Huntsville, AL" and a.best.source == "chooser"
-        assert gz.km(a.best.lat, a.best.lon, 34.7304, -86.5861) < 25
-        assert a.best.supports[:2] == ["chooser", "ai"]
-    else:  # "other: Decatur, Alabama" is placed offline; Huntsville (first pass) still leads
+        assert ch.place == "Huntsville, AL" and not ch.other
+        assert gz.km(ch.lat, ch.lon, 34.7304, -86.5861) < 25
+    else:  # "other: Decatur, Alabama" is placed offline
         assert ch.other and ch.lat == pytest.approx(34.6059, abs=0.01)
-        assert a.best.place in ("Huntsville, AL", "Decatur, AL")
-        assert gz.km(a.best.lat, a.best.lon, 34.7304, -86.5861) < 40
+    # Every GeoCLIP pin sits in Nashville and only the AI model (both passes are
+    # the same model) says Huntsville: the dominant GeoCLIP cluster wins.
+    assert a.best.source == "geoclip" and a.best.place == "Nashville, TN"
+    assert a.best.confidence < 0.6

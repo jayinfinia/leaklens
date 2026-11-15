@@ -3,7 +3,8 @@
 metadata -> clues (detector, OCR) -> geolocation (StreetCLIP labels, GeoCLIP
 pins and clusters) -> scene -> attribution -> AI first pass (blind) -> sign-
 text lookup -> AI chooser (picks among named candidates; skipped after a
-strong text match) -> fusion into one best guess -> risk.
+strong text match or when GeoCLIP already backs the first guess) -> fusion
+into one best guess -> risk.
 """
 
 import base64
@@ -109,12 +110,14 @@ def analyze(raw: Image.Image, upright: Image.Image, explain: bool = True,
     matches = text_lookup(clues, geo, ai if ai and not ai.error else None, feature_keys) if lookup else []
 
     # Second AI pass: choose among named candidates. A verified sign already
-    # settles it, so skip the extra call then.
+    # settles it, and so does GeoCLIP agreeing with the first guess: skip the
+    # extra call then.
     strong = any(m.confidence == "strong" for m in matches)
-    if ai and not ai.error and config.VLM_CHOOSE and not strong:
+    if (ai and not ai.error and config.VLM_CHOOSE and not strong
+            and not fuse.first_pass_confirmed(geo, ai)):
         opts = fuse.options(geo, ai, matches)
         if len(opts) >= config.CHOOSE_MIN_OPTIONS:
-            states = [r.name for r in geo.region[:3]] if us else []
+            states = geo.region[:3] if us else []  # names and probabilities
             choice = vlm.choose(upright, ai, [o.name for o in opts], states)
             ai = ai.model_copy(update={"choice": fuse.locate_choice(choice, opts, lookup, us)})
     best = fuse.fuse(geo, ai, matches, scorer, exif)

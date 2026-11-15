@@ -172,19 +172,32 @@ MAX_CLUSTERS = 8
 VLM_CHOOSE = os.getenv("LEAKLENS_VLM_CHOOSE", "1") == "1"
 CHOOSE_MAX_OPTIONS = int(os.getenv("LEAKLENS_CHOOSE_MAX_OPTIONS", "8"))
 CHOOSE_MIN_OPTIONS = 2
+# Skip the chooser when at least this share of GeoCLIP's pin mass is already
+# near the first guess (fuse.first_pass_confirmed). Above 1 never skips.
+CHOOSE_SKIP_MASS = float(os.getenv("LEAKLENS_CHOOSE_SKIP_MASS", "0.25"))
 
 # Fusion (app/pipeline/fuse.py). Every candidate is a place on the map; it
-# collects evidence from every source within FUSE_AGREE_KM. Weights are hand
-# set, not fitted: tune them on the benchmark. A strong sign-text match
-# always wins outright.
+# collects evidence from every source within FUSE_AGREE_KM. A strong sign-text
+# match always wins outright. Weights were set from 35 benchmark photos
+# (scripts/fuse_replay.py; leave-one-out checked), so treat them as rough:
+# - the chooser almost always repeats the first guess (same model), so it adds
+#   little on top of it;
+# - a dominant GeoCLIP cluster (half its pins or more) was right 19 of 24
+#   times, about as often as a 90%+ confident AI guess, so pin mass weighs
+#   about as much as AI confidence;
+# - GeoCLIP's verification score separates right from wrong spots only weakly;
+# - when StreetCLIP's top state is >= 50%, the true state was in its top 3
+#   every time (20 of 20).
 FUSE_AGREE_KM = float(os.getenv("LEAKLENS_FUSE_AGREE_KM", "40"))
-FUSE_W_CHOOSER = 1.2    # x the chooser's confidence
+FUSE_W_CHOOSER = 0.3    # x the chooser's confidence (on top of the first pass)
 FUSE_W_AI = 1.0         # x the best first-pass AI confidence nearby
 FUSE_W_TEXT_WEAK = 0.4  # a possible sign-text match nearby
-FUSE_W_CLUSTER = 0.6    # x share of GeoCLIP's top-k mass in the nearby clusters
-FUSE_W_GEOCLIP = 0.8    # x GeoCLIP verification score at the spot (0-1)
+FUSE_W_CLUSTER = 1.5    # x share of GeoCLIP's top-k mass in the nearby clusters
+FUSE_W_GEOCLIP = 0.2    # x GeoCLIP verification score at the spot (0-1)
 FUSE_W_STATE = 0.5      # x StreetCLIP prob of the spot's state / top state prob
 FUSE_W_AI_STATE = 0.3   # the spot is in the state the AI model named
 FUSE_W_AGREE = 0.4      # per extra independent source nearby (AI, sign text, GeoCLIP)
+FUSE_W_OFF_STATE = 0.5  # penalty: the spot is outside StreetCLIP's top 3 states...
+FUSE_STATE_SURE = 0.5   # ...and StreetCLIP's top state has at least this probability
 FUSE_SCORE_FULL = 4.0   # a score this high is reported as ~90% confidence
 FUSE_MAX_CONF = 0.9

@@ -37,6 +37,24 @@ MANIFEST = IMAGES / "manifest.json"
 API = "https://commons.wikimedia.org/w/api.php"
 UA = "LeakLens-benchmark/0.1 (https://github.com/jayinfinia/leaklens)"
 OK_LICENSES = ("CC0", "Public domain", "CC BY", "CC BY-SA", "PD")
+# Not usable as street photos (historical, portrait, wildlife, ambiguous place).
+EXCLUDE = {"new-york-2.jpg", "atlanta-1.jpg", "boston-2.jpg", "san-francisco-1.jpg", "washington-2.jpg"}
+
+
+def best_guess(a):
+    """LeakLens's single best answer, in order of trust:
+    a strong sign-text match, then the AI's top geocoded guess, then the GeoCLIP pin."""
+    strong = [m for m in a.text_matches if getattr(m, "confidence", "") == "strong"]
+    if strong:
+        return strong[0].lat, strong[0].lon, "text"
+    if a.ai and a.ai.guesses:
+        g = next((g for g in a.ai.guesses if g.lat is not None), None)
+        if g:
+            return g.lat, g.lon, "ai"
+    if a.geolocation.points:
+        p = a.geolocation.points[0]
+        return p.lat, p.lon, "geoclip"
+    return None
 
 
 # ------------------------------------------------------------ helpers
@@ -138,7 +156,8 @@ def fetch(per_city: int) -> None:
 
 
 # ------------------------------------------------------------ run
-def run(keep_exif: bool, limit: int | None, lookup: bool = False) -> Path:
+def run(keep_exif: bool, limit: int | None, lookup: bool = False, safe: bool = True,
+        only: str | None = None) -> Path:
     from app import config
     from app.pipeline import analyze, load_image
     from app.pipeline.exif import strip_metadata
@@ -147,7 +166,10 @@ def run(keep_exif: bool, limit: int | None, lookup: bool = False) -> Path:
 
     if not MANIFEST.exists():
         sys.exit("No photos yet. Run:  python scripts/benchmark.py fetch")
-    items = json.loads(MANIFEST.read_text())[:limit]
+    items = [i for i in json.loads(MANIFEST.read_text()) if i["file"] not in EXCLUDE]
+    if only:
+        items = [i for i in items if only in i["file"]]
+    items = items[:limit]
 
     out_dir = BENCH / "results" / datetime.now().strftime("%Y%m%d-%H%M%S")
     out_dir.mkdir(parents=True)
@@ -174,11 +196,19 @@ def run(keep_exif: bool, limit: int | None, lookup: bool = False) -> Path:
         t_analyze = time.perf_counter() - t0
 
         t0 = time.perf_counter()
-        ids, note = plan(upright, a)
-        boxes = [c.box for c in a.clues if c.id in ids]
-        clean = blur_regions(upright, boxes)
-        after = analyze(clean, clean, explain=False, lookup=lookup)
+        if safe:
+            ids, note = plan(upright, a)
+            boxes = [c.box for c in a.clues if c.id in ids and c.box]
+            clean = blur_regions(upright, boxes)
+            after = analyze(clean, clean, explain=False, lookup=lookup)
+        else:
+            ids, after = [], a
         t_safe = time.perf_counter() - t0
+        bg = best_guess(a)
+        best_km = haversine_km(bg[0], bg[1], truth_lat, truth_lon) if bg else None
+        ai = a.ai
+        ai_g = next((g for g in (ai.guesses if ai else []) if g.lat is not None), None)
+        ai_km = haversine_km(ai_g.lat, ai_g.lon, truth_lat, truth_lon) if ai_g else None
 
         g = a.geolocation
         regions = [r.name for r in g.region]
@@ -207,6 +237,13 @@ def run(keep_exif: bool, limit: int | None, lookup: bool = False) -> Path:
             "scene": " ".join(s.category for s in a.scene),
             "lookup_match": (f"{match.text} -> {match.name}"[:120] if match else ""),
             "lookup_error_km": round(match_km, 1) if match_km is not None else "",
+            "best_source": bg[2] if bg else "",
+            "best_error_km": round(best_km, 1) if best_km is not None else "",
+            "ai_guess": (f"{ai.guesses[0].place} ({ai.guesses[0].confidence:.2f})" if ai and ai.guesses else ""),
+            "ai_error_km": round(ai_km, 1) if ai_km is not None else "",
+            "ai_signs": " | ".join(ai.sign_texts)[:200] if ai else "",
+            "ai_error": (ai.error or "")[:200] if ai else "no AI",
+            "ai_secs": round(ai.ms / 1000, 1) if ai else "",
             "risk_before": a.risk.score, "level_before": a.risk.level,
             "blurred": len(ids), "risk_after": after.risk.score, "level_after": after.risk.level,
             "after_summary": after.geolocation.summary,
@@ -216,7 +253,7 @@ def run(keep_exif: bool, limit: int | None, lookup: bool = False) -> Path:
         }
         rows.append(row)
         print(f"[{n:>2}/{len(items)}] {item['city']:<16} pred={row['pred_state'] or row['pred_country']:<18} "
-              f"{'✓' if row['state_top1'] else '·'} err={row['pin_error_km'] or '-':>7} km  "
+              f"{'✓' if row['state_top1'] else '·'} best={row['best_error_km'] or '-':>7} km ({row['best_source'] or '-'})  "
               f"risk {row['risk_before']:>3} → {row['risk_after']:>3}  ({t_analyze:.1f}s)")
 
     with (out_dir / "results.csv").open("w", newline="") as f:
@@ -252,6 +289,18 @@ def summarize(rows: list[dict], keep_exif: bool, mock: bool, lookup: bool = Fals
         f"| Correct state, top 1 | {_pct(r['state_top1'] for r in rows)} |",
         f"| Correct state, top 5 | {_pct(r['state_top5'] for r in rows)} |",
     ]
+    bkm = [r["best_error_km"] for r in rows if r.get("best_error_km", "") != ""]
+    n = len(rows)
+    lines += [
+        f"| **Best guess within 25 km (city)** | **{sum(k <= 25 for k in bkm)} of {n}** |",
+        f"| Best guess within 200 km | {sum(k <= 200 for k in bkm)} of {n} |",
+        f"| Best guess median error | {statistics.median(bkm):.0f} km |" if bkm else "| Best guess | none |",
+        f"| Best guess source text / ai / geoclip | "
+        f"{sum(r['best_source'] == 'text' for r in rows)} / {sum(r['best_source'] == 'ai' for r in rows)} / "
+        f"{sum(r['best_source'] == 'geoclip' for r in rows)} |",
+        f"| AI guess within 25 km | {sum(r['ai_error_km'] != '' and r['ai_error_km'] <= 25 for r in rows)} of {n} |",
+        f"| AI errors | {sum(bool(r['ai_error']) for r in rows)} of {n} |",
+    ]
     if kms:
         lines += [
             f"| Map pin median error | {statistics.median(kms):.0f} km |",
@@ -281,12 +330,13 @@ def summarize(rows: list[dict], keep_exif: bool, mock: bool, lookup: bool = Fals
         "",
         "## Per photo",
         "",
-        "| City | Predicted | State ✓ | Pin err (km) | Top clue | Risk before → after |",
-        "|---|---|---|---|---|---|",
+        "| File | Predicted | State ✓ | Best err (km, source) | AI guess | Pin err (km) | Top clue | Risk before → after |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     for r in rows:
         lines.append(
-            f"| {r['city']} | {r['pred_state'] or r['pred_country']} | {'✓' if r['state_top1'] else ''} | "
+            f"| {r['file']} | {r['pred_state'] or r['pred_country']} | {'✓' if r['state_top1'] else ''} | "
+            f"{r['best_error_km'] or '-'} ({r['best_source'] or '-'}) | {r['ai_guess'] or r['ai_error'][:40] or '-'} | "
             f"{r['pin_error_km'] or '-'} | {r['top_clue'] or '-'} | {r['risk_before']} → {r['risk_after']} |")
     lines += ["", "## Photo credits", ""]
     for r in rows:
@@ -303,11 +353,13 @@ def main() -> None:
     r.add_argument("--keep-exif", action="store_true")
     r.add_argument("--limit", type=int)
     r.add_argument("--lookup", action="store_true", help="also search sign text on OpenStreetMap")
+    r.add_argument("--no-safe", action="store_true", help="skip the Make it safe pass (faster)")
+    r.add_argument("--only", help="run photos whose file name contains this text")
     args = ap.parse_args()
     if args.cmd == "fetch":
         fetch(args.per_city)
     else:
-        run(args.keep_exif, args.limit, args.lookup)
+        run(args.keep_exif, args.limit, args.lookup, safe=not args.no_safe, only=args.only)
 
 
 if __name__ == "__main__":

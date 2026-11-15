@@ -7,7 +7,12 @@ questions in one structured call:
 
   1. extract: every readable sign (verbatim), notable clues, and which
      objects from a fixed feature list appear (see features.py)
-  2. reason: up to three candidate places with confidence and why
+  2. reason: the most likely US state, then up to three candidate places
+     with confidence and why
+
+A second call (`choose`) shows the model a shuffled list of named candidate
+places (GeoCLIP clusters, its own guesses, sign-text matches) and asks it
+to pick one or name another.
 
 It runs locally through Ollama (default: Qwen3-VL 8B), so the photo never
 leaves the machine. Readings feed the text layer, guesses become search
@@ -23,7 +28,7 @@ import time
 import urllib.request
 
 from .. import config
-from ..schemas import AIGuess, AIReading
+from ..schemas import AIChoice, AIGuess, AIReading
 from .features import FEATURES
 
 PROMPT = f"""You are the "attacker" half of a privacy checker. The user wants to know what this photo
@@ -37,12 +42,19 @@ Step 1, clue extraction:
   and what each suggests.
 - features: which of these objects are clearly visible (use only these exact names):
   {", ".join(FEATURES)}
+- state_evidence: anything that points to a US state (or another country): license plate designs,
+  phone numbers and their area codes, state route or interstate shields, DOT sign styles, state names
+  or abbreviations on signs, utility poles, vegetation and terrain.
 
 Step 2, reasoning:
+- state: the most likely US state (or the country, if not the US), decided from state_evidence first.
 - guesses: up to 3 candidate places, most likely first, as "City, State/Region, Country", each with a
-  confidence from 0 to 1 and a one-sentence reason that cites the clues. Use lower confidence when unsure.
+  confidence from 0 to 1 and a one-sentence reason that cites the clues. Guesses should be in that
+  state unless a sign says otherwise. Always give at least one best guess, with a low confidence
+  (0.1 to 0.2) if unsure; never leave guesses empty.
 
-Keep it short: at most 8 sign_texts, 6 clues and 3 guesses, one sentence each. Answer with JSON only."""
+Keep it short: at most 8 sign_texts, 6 clues, 4 state_evidence and 3 guesses, one sentence each.
+Answer with JSON only."""
 
 SCHEMA = {
     "type": "object",
@@ -53,13 +65,15 @@ SCHEMA = {
             "properties": {"clue": {"type": "string"}, "suggests": {"type": "string"}},
             "required": ["clue", "suggests"]}},
         "features": {"type": "array", "items": {"type": "string", "enum": list(FEATURES)}},
+        "state_evidence": {"type": "array", "items": {"type": "string"}, "maxItems": 4},
+        "state": {"type": "string"},
         "guesses": {"type": "array", "items": {
             "type": "object",
             "properties": {"place": {"type": "string"}, "confidence": {"type": "number"},
                            "why": {"type": "string"}},
             "required": ["place", "confidence", "why"]}},
     },
-    "required": ["sign_texts", "clues", "features", "guesses"],
+    "required": ["sign_texts", "clues", "features", "state_evidence", "state", "guesses"],
 }
 
 _status = {"checked": None, "ok": False, "reason": "not checked"}
@@ -158,7 +172,7 @@ def _repair(text: str) -> str:
 KEYS = ("sign_texts", "clues", "features", "guesses")
 
 
-def _parse(content: str) -> dict:
+def _parse(content: str, keys: tuple = KEYS) -> dict:
     """First JSON object in the text that looks like our answer. Handles
     prose around it, several objects in a row ("Extra data"), and an answer
     cut off at the end. Thinking traces often quote partial JSON, so the
@@ -170,7 +184,7 @@ def _parse(content: str) -> dict:
     while i >= 0:
         try:
             obj, end = dec.raw_decode(content, i)
-            if isinstance(obj, dict) and any(k in obj for k in KEYS):
+            if isinstance(obj, dict) and any(k in obj for k in keys):
                 found.append(obj)
             i = content.find("{", end)
         except json.JSONDecodeError:
@@ -205,8 +219,11 @@ def to_reading(data: dict, model: str, ms: int) -> AIReading:
     clues = [{"clue": str(c.get("clue", ""))[:160], "suggests": str(c.get("suggests", ""))[:200]}
              for c in (data.get("clues") or [])[:10] if isinstance(c, dict) and c.get("clue")]
     feats = [f for f in (data.get("features") or []) if f in FEATURES]
+    evidence = [" ".join(str(e).split())[:160] for e in (data.get("state_evidence") or [])
+                if isinstance(e, str) and e.strip()][:6]
     return AIReading(model=model, ms=ms, sign_texts=texts[:15], clues=clues,
-                     features=sorted(set(feats)), guesses=guesses)
+                     features=sorted(set(feats)), state_evidence=evidence,
+                     state=" ".join(str(data.get("state") or "").split())[:60], guesses=guesses)
 
 
 def _answer_text(resp: dict) -> str:
@@ -236,38 +253,23 @@ ATTEMPTS = [
 ]
 
 
-def ask(image) -> AIReading | None:
-    if config.MOCK_MODE:
-        from . import mock
-
-        if not mock.has_detail(image):  # blur-aware, like the other mocks
-            return AIReading(model="mock-vlm", ms=0, guesses=[
-                AIGuess(place="Somewhere in the eastern US", confidence=0.1, why="generic street")])
-        return AIReading(model="mock-vlm", ms=0, sign_texts=["MAIN ST", "CORNER JUICE"],
-                         clues=[{"clue": "brick storefronts", "suggests": "older US downtown"}],
-                         features=["bus stop"],
-                         guesses=[AIGuess(place="Charlottesville, Virginia, USA", confidence=0.6,
-                                          why="brick downtown mall and Virginia-style signage")])
-    st = status()
-    if not st.get("ok"):
-        return AIReading(model=config.VLM_MODEL, ms=0, error=st.get("reason", "unavailable"))
-    model = st.get("model", config.VLM_MODEL)
-    image_b64 = _encode(image, config.VLM_MAX_SIDE)
-    t0 = time.monotonic()
+def _run(model: str, image_b64: str, prompt: str, schema: dict, keys: tuple, useful, label: str):
+    """Ask Ollama for a JSON answer, most to least constrained (see ATTEMPTS).
+    Returns (data, problems): data is {} when every attempt failed."""
     problems = []
     budget = 2048
     for name, fmt in ATTEMPTS:
-        prompt = PROMPT if name != "free" else PROMPT + "\nReturn a single JSON object with keys " \
-            '"sign_texts", "clues", "features", "guesses". No other text.'
+        text = prompt if name != "free" else prompt + "\nReturn a single JSON object with keys " \
+            + ", ".join(f'"{k}"' for k in schema["required"]) + ". No other text."
         payload = {
             "model": model,
-            "messages": [{"role": "user", "content": prompt, "images": [image_b64]}],
+            "messages": [{"role": "user", "content": text, "images": [image_b64]}],
             "stream": False,
             "keep_alive": "15m",
             "options": {"temperature": 0, "num_ctx": config.VLM_NUM_CTX, "num_predict": budget},
         }
         if fmt() is not None:
-            payload["format"] = fmt()
+            payload["format"] = schema if name == "schema" else fmt()
         try:
             resp = _http("/api/chat", payload, timeout=config.VLM_TIMEOUT)
             msg = resp.get("message") or {}
@@ -281,29 +283,175 @@ def ask(image) -> AIReading | None:
                 resp = _http("/api/chat", payload, timeout=config.VLM_TIMEOUT * 2)
         except Exception as exc:
             problems.append(f"{name}: {exc}")
-            print(f"[leaklens] AI attempt '{name}' failed: {exc}")
+            print(f"[leaklens] {label} attempt '{name}' failed: {exc}")
             if "timed out" in str(exc).lower():
                 break  # a timeout will just repeat; don't triple the wait
             continue
-        text = _answer_text(resp)
         try:
-            data = _parse(text)
+            data = _parse(_answer_text(resp), keys)
         except Exception as exc:
             data = {}
             problems.append(f"{name}: unparseable ({exc})")
-        if _useful(data):
-            reading = to_reading(data, model, int(1000 * (time.monotonic() - t0)))
-            print(f"[leaklens] AI model ({name} mode): {len(reading.sign_texts)} signs, "
-                  f"{len(reading.guesses)} guesses, {reading.ms / 1000:.1f}s; top guess: "
-                  f"{reading.guesses[0].place if reading.guesses else 'none'}")
-            return reading
+        if useful(data):
+            return data, problems, name
         where = "thinking" if not (resp.get("message") or {}).get("content", "").strip() else "content"
         problems.append(f"{name}: empty answer (looked in {where}; done_reason={resp.get('done_reason')})")
-        print(f"[leaklens] AI attempt '{name}' gave nothing usable; trying the next mode")
+        print(f"[leaklens] {label} attempt '{name}' gave nothing usable; trying the next mode")
+    return {}, problems, ""
+
+
+def ask(image) -> AIReading | None:
+    if config.MOCK_MODE:
+        from . import mock
+
+        if not mock.has_detail(image):  # blur-aware, like the other mocks
+            return AIReading(model="mock-vlm", ms=0, state="", guesses=[
+                AIGuess(place="Somewhere in the eastern US", confidence=0.1, why="generic street")])
+        return AIReading(model="mock-vlm", ms=0, sign_texts=["MAIN ST", "CORNER JUICE"],
+                         clues=[{"clue": "brick storefronts", "suggests": "older US downtown"}],
+                         features=["bus stop"], state="Virginia",
+                         state_evidence=["Virginia plate on a parked car"],
+                         guesses=[AIGuess(place="Charlottesville, Virginia, USA", confidence=0.6,
+                                          why="brick downtown mall and Virginia-style signage")])
+    st = status()
+    if not st.get("ok"):
+        return AIReading(model=config.VLM_MODEL, ms=0, error=st.get("reason", "unavailable"))
+    model = st.get("model", config.VLM_MODEL)
+    image_b64 = _encode(image, config.VLM_MAX_SIDE)
+    t0 = time.monotonic()
+    data, problems, mode = _run(model, image_b64, PROMPT, SCHEMA, KEYS, _useful, "AI")
+    if data:
+        reading = to_reading(data, model, int(1000 * (time.monotonic() - t0)))
+        print(f"[leaklens] AI model ({mode} mode): {len(reading.sign_texts)} signs, "
+              f"{len(reading.guesses)} guesses, {reading.ms / 1000:.1f}s; top guess: "
+              f"{reading.guesses[0].place if reading.guesses else 'none'}")
+        return reading
     hint = (" This looks like a thinking build; try: ollama pull qwen3-vl:8b-instruct"
             if "instruct" not in model else "")
     return AIReading(model=model, ms=int(1000 * (time.monotonic() - t0)),
                      error="no usable answer after 3 attempts: " + "; ".join(problems)[:400] + hint)
+
+
+# ------------------------------------------------------------ second pass: choose
+# GeoRanker (NeurIPS 2025) found a plain 7B VLM picking among retrieved
+# candidates does far better than the same model guessing blind. Names, not
+# coordinates (small models misread raw lat/lon, Img2Loc); shuffled, with
+# "other" allowed (constrained lists anchor small models and shift with
+# order, arXiv 2604.16248). The blind first pass is kept as an independent
+# opinion and its readings are passed in as text.
+CHOOSE_PROMPT = """You are checking where this photo was taken. A first look at it found:
+- signs read: {signs}
+- clues: {clues}
+- state evidence: {evidence}
+- its own first guesses: {guesses}
+{context}
+Similar photos were taken near these places (in no particular order):
+{options}
+
+Using the signs and clues, decide which place this photo is most likely from.
+- state: the most likely US state (or country), from the evidence.
+- evidence: one or two sentences citing the signs or clues that decide it.
+- choice: copy one place from the list exactly, or "other: City, State" if the evidence clearly
+  points somewhere not listed.
+- confidence: 0 to 1. Use low values when unsure; still pick the best option.
+Answer with JSON only."""
+
+CHOOSE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "state": {"type": "string"},
+        "evidence": {"type": "string"},
+        "choice": {"type": "string"},
+        "confidence": {"type": "number"},
+    },
+    "required": ["state", "evidence", "choice", "confidence"],
+}
+CHOOSE_KEYS = ("choice",)
+
+
+def _listing(items, empty="none") -> str:
+    items = [str(i) for i in items if str(i).strip()]
+    return "; ".join(items) if items else empty
+
+
+def choose_prompt(reading: AIReading | None, options: list[str], states: list[str] | None = None) -> str:
+    r = reading or AIReading(model="")
+    clues = [f"{c.get('clue')} ({c.get('suggests')})" for c in r.clues[:6]]
+    guesses = [f"{g.place} ({g.confidence:.0%})" for g in r.guesses]
+    context = (f"- a street-photo model's most likely US states: {', '.join(states)}\n" if states else "")
+    return CHOOSE_PROMPT.format(
+        signs=_listing(f'"{t}"' for t in r.sign_texts[:8]), clues=_listing(clues),
+        evidence=_listing(r.state_evidence[:4] + ([f"settled on {r.state}"] if r.state else [])),
+        guesses=_listing(guesses), context=context,
+        options="\n".join(f"- {o}" for o in options))
+
+
+def _match_option(text: str, options: list[str]) -> str | None:
+    t = _norm(text)
+    if not t:
+        return None
+    for o in options:
+        if _norm(o) == t:
+            return o
+    for o in options:  # "Charlottesville" for "Charlottesville, VA"; "near X" for "X"
+        n = _norm(o)
+        city = _norm(o.split(",")[0].removeprefix("near "))
+        if (t.startswith(n) or (len(t) >= 4 and n.startswith(t)) or t == city
+                or (city and t.startswith(city) and len(city) >= 4)):
+            return o
+    return None
+
+
+def parse_choice(data: dict, options: list[str]) -> AIChoice:
+    """{"choice": "other: Richmond, VA", ...} -> AIChoice. A bare name not on the
+    list counts as "other"."""
+    raw = " ".join(str(data.get("choice") or "").split()).strip().strip('"')
+    try:
+        conf = max(0.0, min(1.0, float(data.get("confidence", 0) or 0)))
+    except (TypeError, ValueError):
+        conf = 0.0
+    why = " ".join(str(data.get("evidence") or data.get("why") or "").split())[:300]
+    state = " ".join(str(data.get("state") or "").split())[:60]
+    low = raw.lower()
+    other = low.startswith(("other:", "other -", "other ", "other,"))
+    if other:
+        raw = raw[5:].lstrip(" :-,").strip()
+    hit = None if other else _match_option(raw, options)
+    if hit is None and not other and raw.isdigit() and 1 <= int(raw) <= len(options):
+        hit = options[int(raw) - 1]
+    if hit is not None:
+        return AIChoice(place=hit, confidence=round(conf, 2), why=why, state=state, options=options)
+    if not raw or raw.lower() in ("other", "none", "unknown", "n/a"):
+        return AIChoice(confidence=0.0, why=why, state=state, options=options,
+                        error="the model picked no place")
+    return AIChoice(place=raw[:120], confidence=round(conf, 2), why=why, state=state,
+                    other=True, options=options)
+
+
+def choose(image, reading: AIReading | None, options: list[str],
+           states: list[str] | None = None) -> AIChoice:
+    """Second AI pass: pick one of `options` (already shuffled) or name another."""
+    if config.MOCK_MODE:
+        pick = next((o for o in options if "charlottesville" in o.lower()), options[0] if options else "")
+        sure = "charlottesville" in pick.lower()
+        return AIChoice(place=pick, confidence=0.55 if sure else 0.15 if pick else 0.0,
+                        state="Virginia" if sure else "",
+                        why="mock: brick downtown and Virginia-style signage", options=options)
+    st = status()
+    if not st.get("ok"):
+        return AIChoice(options=options, error=st.get("reason", "unavailable"))
+    model = st.get("model", config.VLM_MODEL)
+    t0 = time.monotonic()
+    data, problems, _ = _run(model, _encode(image, config.VLM_MAX_SIDE),
+                             choose_prompt(reading, options, states), CHOOSE_SCHEMA, CHOOSE_KEYS,
+                             lambda d: bool(str(d.get("choice") or "").strip()), "AI chooser")
+    ms = int(1000 * (time.monotonic() - t0))
+    if not data:
+        return AIChoice(options=options, ms=ms,
+                        error="no usable answer after 3 attempts: " + "; ".join(problems)[:300])
+    c = parse_choice(data, options).model_copy(update={"ms": ms})
+    print(f"[leaklens] AI chooser: {'other: ' if c.other else ''}{c.place} ({c.confidence:.2f}), {ms / 1000:.1f}s")
+    return c
 
 
 # ------------------------------------------------------------ merge readings

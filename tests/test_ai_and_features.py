@@ -77,7 +77,8 @@ def test_ask_sends_image_and_schema_and_parses_the_answer(real_mode, monkeypatch
     monkeypatch.setattr(vlm, "_http", fake)
     monkeypatch.setattr(config, "VLM_MODEL", "qwen3-vl:8b")
     r = vlm.ask(Image.new("RGB", (3000, 2000)))
-    assert sent["format"]["required"] == ["sign_texts", "clues", "features", "guesses"]
+    # state evidence and the state come before the guesses, so the model writes them first
+    assert sent["format"]["required"] == ["sign_texts", "clues", "features", "state_evidence", "state", "guesses"]
     assert sent["messages"][0]["images"] and sent["options"]["temperature"] == 0
     assert r.sign_texts == ["POPPY & PARLIAMENT"]  # deduped, junk dropped
     assert r.features == ["butcher shop", "telephone box"]  # unknown feature dropped

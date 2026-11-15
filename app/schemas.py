@@ -53,6 +53,21 @@ class AIGuess(BaseModel):
     lon: Optional[float] = None
 
 
+class AIChoice(BaseModel):
+    """Second AI pass: the model picks one of several named candidate places,
+    or names another ("other: <place>")."""
+    place: str = ""
+    confidence: float = 0.0
+    why: str = ""
+    state: str = ""
+    other: bool = False  # True when the model named a place not on the list
+    options: list[str] = Field(default_factory=list)  # what it was shown, in order
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+    ms: int = 0
+    error: str = ""
+
+
 class AIReading(BaseModel):
     """What the local AI vision model extracted and concluded."""
     model: str
@@ -60,7 +75,10 @@ class AIReading(BaseModel):
     sign_texts: list[str] = Field(default_factory=list)
     clues: list[dict] = Field(default_factory=list)
     features: list[str] = Field(default_factory=list)
+    state_evidence: list[str] = Field(default_factory=list)
+    state: str = ""  # the US state (or country) the model settled on
     guesses: list[AIGuess] = Field(default_factory=list)
+    choice: Optional[AIChoice] = None
     error: str = ""
 
 
@@ -75,10 +93,21 @@ class GuessPoint(BaseModel):
     prob: float
 
 
+class PlaceCluster(BaseModel):
+    """GeoCLIP pins within ~25 km of each other, named after the nearest city."""
+    lat: float
+    lon: float
+    prob: float  # summed GeoCLIP probability of its pins
+    n: int = 1
+    place: str = ""  # e.g. "Charlottesville, VA"; "" when no city is near
+    km: Optional[float] = None  # distance from the center to that city
+
+
 class Geolocation(BaseModel):
     country: list[GuessLabel] = Field(default_factory=list)
     region: list[GuessLabel] = Field(default_factory=list)
     points: list[GuessPoint] = Field(default_factory=list)
+    clusters: list[PlaceCluster] = Field(default_factory=list)
     summary: str = ""
 
 
@@ -102,6 +131,17 @@ class Risk(BaseModel):
     factors: list[RiskFactor]
 
 
+class BestGuess(BaseModel):
+    """LeakLens's one final answer: where the photo most likely is."""
+    lat: float
+    lon: float
+    place: str
+    source: str  # "text", "chooser", "ai", "geoclip" or "state"
+    confidence: float  # 0-1, from the fusion score; not calibrated
+    why: str = ""
+    supports: list[str] = Field(default_factory=list)  # every source that agrees
+
+
 class Analysis(BaseModel):
     width: int
     height: int
@@ -112,6 +152,7 @@ class Analysis(BaseModel):
     text_matches: list[TextMatch] = Field(default_factory=list)
     lookup_used: bool = False
     ai: Optional[AIReading] = None
+    best: Optional[BestGuess] = None
     risk: Risk
     # JPEG preview for formats browsers can't show (e.g. HEIC from iPhones).
     preview_b64: Optional[str] = None

@@ -42,8 +42,12 @@ EXCLUDE = {"new-york-2.jpg", "atlanta-1.jpg", "boston-2.jpg", "san-francisco-1.j
 
 
 def best_guess(a):
-    """LeakLens's single best answer, in order of trust:
-    a strong sign-text match, then the AI's top geocoded guess, then the GeoCLIP pin."""
+    """LeakLens's single best answer: the fused `a.best` (app/pipeline/fuse.py).
+    Fallback for analyses without it, in order of trust: a strong sign-text
+    match, then the AI's top geocoded guess, then the GeoCLIP pin."""
+    best = getattr(a, "best", None)
+    if best is not None:
+        return best.lat, best.lon, best.source
     strong = [m for m in a.text_matches if getattr(m, "confidence", "") == "strong"]
     if strong:
         return strong[0].lat, strong[0].lon, "text"
@@ -209,6 +213,9 @@ def run(keep_exif: bool, limit: int | None, lookup: bool = False, safe: bool = T
         ai = a.ai
         ai_g = next((g for g in (ai.guesses if ai else []) if g.lat is not None), None)
         ai_km = haversine_km(ai_g.lat, ai_g.lon, truth_lat, truth_lon) if ai_g else None
+        choice = ai.choice if ai else None
+        choice_km = (haversine_km(choice.lat, choice.lon, truth_lat, truth_lon)
+                     if choice and choice.lat is not None else None)
 
         g = a.geolocation
         regions = [r.name for r in g.region]
@@ -239,8 +246,14 @@ def run(keep_exif: bool, limit: int | None, lookup: bool = False, safe: bool = T
             "lookup_error_km": round(match_km, 1) if match_km is not None else "",
             "best_source": bg[2] if bg else "",
             "best_error_km": round(best_km, 1) if best_km is not None else "",
+            "best_place": a.best.place if getattr(a, "best", None) else "",
+            "best_conf": a.best.confidence if getattr(a, "best", None) else "",
+            "best_supports": "+".join(a.best.supports) if getattr(a, "best", None) else "",
             "ai_guess": (f"{ai.guesses[0].place} ({ai.guesses[0].confidence:.2f})" if ai and ai.guesses else ""),
             "ai_error_km": round(ai_km, 1) if ai_km is not None else "",
+            "ai_choice": ((("other: " if choice.other else "") + f"{choice.place} ({choice.confidence:.2f})")
+                          if choice and not choice.error else (choice.error[:80] if choice else "")),
+            "ai_choice_error_km": round(choice_km, 1) if choice_km is not None else "",
             "ai_signs": " | ".join(ai.sign_texts)[:200] if ai else "",
             "ai_error": (ai.error or "")[:200] if ai else "no AI",
             "ai_secs": round(ai.ms / 1000, 1) if ai else "",
@@ -253,7 +266,8 @@ def run(keep_exif: bool, limit: int | None, lookup: bool = False, safe: bool = T
         }
         rows.append(row)
         print(f"[{n:>2}/{len(items)}] {item['city']:<16} pred={row['pred_state'] or row['pred_country']:<18} "
-              f"{'✓' if row['state_top1'] else '·'} best={row['best_error_km'] or '-':>7} km ({row['best_source'] or '-'})  "
+              f"{'✓' if row['state_top1'] else '·'} best={row['best_error_km'] or '-':>7} km ({row['best_source'] or '-'}"
+              f"{': ' + row['best_place'] if row['best_place'] else ''})  "
               f"risk {row['risk_before']:>3} → {row['risk_after']:>3}  ({t_analyze:.1f}s)")
 
     with (out_dir / "results.csv").open("w", newline="") as f:
@@ -271,7 +285,8 @@ def _pct(xs) -> str:
 
 
 def summarize(rows: list[dict], keep_exif: bool, mock: bool, lookup: bool = False) -> str:
-    defaults = {"best_source": "", "best_error_km": "", "ai_guess": "", "ai_error_km": "", "ai_error": "", "file": ""}
+    defaults = {"best_source": "", "best_error_km": "", "ai_guess": "", "ai_error_km": "", "ai_error": "", "file": "",
+                "best_place": "", "ai_choice_error_km": ""}
     rows = [{**defaults, **r} for r in rows]
     kms = [r["pin_error_km"] for r in rows if r["pin_error_km"] != ""]
     drop = [r["risk_before"] - r["risk_after"] for r in rows]
@@ -297,10 +312,13 @@ def summarize(rows: list[dict], keep_exif: bool, mock: bool, lookup: bool = Fals
         f"| **Best guess within 25 km (city)** | **{sum(k <= 25 for k in bkm)} of {n}** |",
         f"| Best guess within 200 km | {sum(k <= 200 for k in bkm)} of {n} |",
         f"| Best guess median error | {statistics.median(bkm):.0f} km |" if bkm else "| Best guess | none |",
-        f"| Best guess source text / ai / geoclip | "
-        f"{sum(r['best_source'] == 'text' for r in rows)} / {sum(r['best_source'] == 'ai' for r in rows)} / "
-        f"{sum(r['best_source'] == 'geoclip' for r in rows)} |",
-        f"| AI guess within 25 km | {sum(r['ai_error_km'] != '' and r['ai_error_km'] <= 25 for r in rows)} of {n} |",
+        "| Best guess source | " + (", ".join(
+            f"{src} {sum(r['best_source'] == src for r in rows)}"
+            for src in ("metadata", "text", "chooser", "ai", "geoclip", "state")
+            if any(r['best_source'] == src for r in rows)) or "none") + " |",
+        f"| AI first guess within 25 km | {sum(r['ai_error_km'] != '' and r['ai_error_km'] <= 25 for r in rows)} of {n} |",
+        f"| AI chooser pick within 25 km | "
+        f"{sum(r['ai_choice_error_km'] != '' and r['ai_choice_error_km'] <= 25 for r in rows)} of {n} |",
         f"| AI errors | {sum(bool(r['ai_error']) for r in rows)} of {n} |",
     ]
     if kms:
@@ -338,7 +356,8 @@ def summarize(rows: list[dict], keep_exif: bool, mock: bool, lookup: bool = Fals
     for r in rows:
         lines.append(
             f"| {r['city']} ({r['file']}) | {r['pred_state'] or r['pred_country']} | {'✓' if r['state_top1'] else ''} | "
-            f"{r['best_error_km'] or '-'} ({r['best_source'] or '-'}) | {r['ai_guess'] or r['ai_error'][:40] or '-'} | "
+            f"{r['best_error_km'] or '-'} ({r['best_source'] or '-'}{': ' + r['best_place'] if r['best_place'] else ''}) | "
+            f"{r['ai_guess'] or r['ai_error'][:40] or '-'} | "
             f"{r['pin_error_km'] or '-'} | {r['top_clue'] or '-'} | {r['risk_before']} → {r['risk_after']} |")
     lines += ["", "## Photo credits", ""]
     for r in rows:

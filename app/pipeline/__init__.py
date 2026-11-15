@@ -1,4 +1,10 @@
-"""Orchestrates the layers: metadata -> clues -> geolocation -> attribution -> risk."""
+"""Orchestrates the layers:
+
+metadata -> clues (detector, OCR) -> geolocation (StreetCLIP labels, GeoCLIP
+pins and clusters) -> scene -> attribution -> AI first pass (blind) -> sign-
+text lookup -> AI chooser (picks among named candidates; skipped after a
+strong text match) -> fusion into one best guess -> risk.
+"""
 
 import base64
 import io
@@ -10,8 +16,8 @@ from ..schemas import Analysis, Clue
 from .attribution import attribute
 from .detect import detect_with_candidates
 from .exif import read_exif
-from .geolocate import geolocate
-from . import vlm
+from .geolocate import geolocate, scorer as geo_scorer
+from . import fuse, vlm
 from .features import features_in
 from .lookup import geocode_guesses, lookup as text_lookup
 from .ocr import find_text
@@ -84,7 +90,8 @@ def analyze(raw: Image.Image, upright: Image.Image, explain: bool = True,
     text = rescale(find_text(ocr_img, sign_boxes), to_ocr)  # -> `work` coordinates
 
     clues = objects + text
-    geo = geolocate(work, embeds)
+    scorer = geo_scorer(work)  # GeoCLIP embeds the photo once: pins now, verification later
+    geo = geolocate(work, embeds, scorer)
     scene = scene_clues(work, embeds)
     if explain:
         clues = attribute(work, clues, geo)  # boxes still in `work` coordinates
@@ -95,10 +102,22 @@ def analyze(raw: Image.Image, upright: Image.Image, explain: bool = True,
     if ai and not ai.error:
         clues = vlm.merge_texts(clues, ai)
     feature_keys = features_in(clues, ai.features if ai and not ai.error else None)
+    us = bool(geo.country) and geo.country[0].name == "United States"
     if lookup and ai and not ai.error:
-        us = bool(geo.country) and geo.country[0].name == "United States"
         ai = geocode_guesses(ai, us)
+    ai = fuse.place_guesses(ai)  # offline coordinates for guesses still without any
     matches = text_lookup(clues, geo, ai if ai and not ai.error else None, feature_keys) if lookup else []
+
+    # Second AI pass: choose among named candidates. A verified sign already
+    # settles it, so skip the extra call then.
+    strong = any(m.confidence == "strong" for m in matches)
+    if ai and not ai.error and config.VLM_CHOOSE and not strong:
+        opts = fuse.options(geo, ai, matches)
+        if len(opts) >= config.CHOOSE_MIN_OPTIONS:
+            states = [r.name for r in geo.region[:3]] if us else []
+            choice = vlm.choose(upright, ai, [o.name for o in opts], states)
+            ai = ai.model_copy(update={"choice": fuse.locate_choice(choice, opts, lookup, us)})
+    best = fuse.fuse(geo, ai, matches, scorer, exif)
 
     preview = None
     if (raw.format or "").upper() not in BROWSER_FORMATS:
@@ -106,7 +125,7 @@ def analyze(raw: Image.Image, upright: Image.Image, explain: bool = True,
 
     return Analysis(
         width=upright.width, height=upright.height, exif=exif, clues=clues, scene=scene,
-        geolocation=geo, text_matches=matches, lookup_used=lookup, ai=ai,
+        geolocation=geo, text_matches=matches, lookup_used=lookup, ai=ai, best=best,
         risk=score(exif, clues, geo, scene, matches, ai), preview_b64=preview,
         mock=config.MOCK_MODE,
     )

@@ -746,7 +746,7 @@ def _short(name: str) -> str:
 def _upgrade(m: TextMatch, hit, note: str) -> TextMatch:
     name, lat, lon, kind = hit[:4]
     return m.model_copy(update={"name": name, "lat": lat, "lon": lon, "kind": kind,
-                                "confidence": "strong", "note": note})
+                                "confidence": "strong", "note": note, "ambiguous": False})
 
 
 def corroborate(matches: dict, pools: dict, clues: list[Clue], use_overpass: bool = True,
@@ -1029,7 +1029,7 @@ def lookup(clues: list[Clue], geo: Geolocation, ai=None, feature_keys: list[str]
             name, lat, lon, kind_ = best[:4]
             matches[c.id] = TextMatch(clue_id=c.id, text=c.label, query=label, name=name, lat=lat,
                                       lon=lon, kind=kind_, confidence=confidence,
-                                      n_results=len(hits), note=note)
+                                      n_results=len(hits), note=note, ambiguous=bool(lock))
             pools[c.id] = hits
             if lock:
                 locked.add(c.id)

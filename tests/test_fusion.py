@@ -368,3 +368,15 @@ def test_choose_prompt_stresses_a_confident_streetclip_state():
     unsure = [GuessLabel(name="Minnesota", prob=0.3), GuessLabel(name="Iowa", prob=0.2)]
     p = vlm.choose_prompt(r, ["Seattle, WA"], unsure)
     assert "most likely US states: Minnesota, Iowa" in p and "confident" not in p
+
+
+
+def test_ambiguous_text_match_is_not_a_candidate():
+    from app.pipeline.fuse import candidates
+    from app.schemas import Geolocation, TextMatch
+    common = TextMatch(clue_id="t1", text="16th St N", query="q", name="NE 16th Street, Oklahoma City",
+                       lat=35.48, lon=-97.50, confidence="weak", ambiguous=True)
+    possible = TextMatch(clue_id="t2", text="Poppy", query="q", name="The Poppy, Huntsville",
+                         lat=34.73, lon=-86.59, confidence="weak")
+    places = [c.place for c in candidates(Geolocation(), None, [common, possible]) if c.source == "text"]
+    assert len(places) == 1 and places[0].startswith("The Poppy")

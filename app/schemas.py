@@ -43,6 +43,9 @@ class TextMatch(BaseModel):
     confidence: str = "strong"  # "strong" (one clear place) or "weak" (possible match)
     n_results: int = 1
     note: str = ""
+    # A chain, a common street name or a name shared by many places: it says
+    # little about where the photo is, so the final answer doesn't use it.
+    ambiguous: bool = False
 
 
 class AIGuess(BaseModel):

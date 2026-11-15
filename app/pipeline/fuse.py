@@ -185,7 +185,9 @@ def candidates(geo: Geolocation, ai: AIReading | None, matches: list[TextMatch])
         if g.lat is not None:
             out.append(Candidate(g.lat, g.lon, _label(g.place, g.lat, g.lon), "ai", g.confidence))
     for m in matches:
-        if m.confidence != "strong":
+        # Ambiguous matches (chains, common streets) were often found by searching near the AI
+        # model's own guess, so counting them would echo that guess as independent agreement.
+        if m.confidence != "strong" and not m.ambiguous:
             out.append(Candidate(m.lat, m.lon, _short(m.name), "text", 1.0))
     total = sum(c.prob for c in geo.clusters) or 1.0
     for c in geo.clusters:

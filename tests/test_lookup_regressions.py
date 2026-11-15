@@ -284,6 +284,7 @@ def test_birmingham_16th_st_n_with_confident_wrong_streetclip(osm):
     matches, best = run_photo(["16th Si N", "16th St N"], ["16th St N"], "Oklahoma City, OK", 0.8,
                               geo_with(("Oklahoma", 0.8), ("Alabama", 0.05)))
     assert not strong(matches)
+    assert matches[0].ambiguous  # the fusion must not count it as agreement with the AI guess
 
 
 def test_minneapolis_e_lake_st_is_only_weak_support(osm):

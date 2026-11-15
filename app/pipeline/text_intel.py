@@ -105,6 +105,89 @@ def is_generic(word: str) -> bool:
     return w in GENERIC or (len(w) >= 6 and any(len(g) >= 6 and _near(w, g) for g in GENERIC))
 
 
+# ------------------------------------------------------------ states and phones
+STATE_CODES = {
+    "alabama": "AL", "alaska": "AK", "arizona": "AZ", "arkansas": "AR", "california": "CA",
+    "colorado": "CO", "connecticut": "CT", "delaware": "DE", "florida": "FL", "georgia": "GA",
+    "hawaii": "HI", "idaho": "ID", "illinois": "IL", "indiana": "IN", "iowa": "IA", "kansas": "KS",
+    "kentucky": "KY", "louisiana": "LA", "maine": "ME", "maryland": "MD", "massachusetts": "MA",
+    "michigan": "MI", "minnesota": "MN", "mississippi": "MS", "missouri": "MO", "montana": "MT",
+    "nebraska": "NE", "nevada": "NV", "new hampshire": "NH", "new jersey": "NJ", "new mexico": "NM",
+    "new york": "NY", "north carolina": "NC", "north dakota": "ND", "ohio": "OH", "oklahoma": "OK",
+    "oregon": "OR", "pennsylvania": "PA", "rhode island": "RI", "south carolina": "SC",
+    "south dakota": "SD", "tennessee": "TN", "texas": "TX", "utah": "UT", "vermont": "VT",
+    "virginia": "VA", "washington": "WA", "west virginia": "WV", "wisconsin": "WI", "wyoming": "WY",
+    "district of columbia": "DC",
+}
+STATE_NAMES = {code: name.title() for name, code in STATE_CODES.items()}
+STATE_NAMES["DC"] = "District of Columbia"
+_DC = re.compile(r"\bwashington,?\s*d\.?\s?c\b\.?|\bdistrict of columbia\b", re.I)
+# "Huntsville, AL" / "Huntsville, AL 35801" (not "EAT, IN OR OUT")
+_CITY_ST = re.compile(r"\b[A-Za-z][A-Za-z.]+,\s*([A-Z]{2})(?=\s*(?:\d{5}\b|$|[,.;)]))")
+
+
+def state_code(name: str) -> str:
+    """'Alabama' / 'AL' / 'Washington, D.C.' -> 'AL' / 'AL' / 'DC'; '' if not a US state."""
+    n = " ".join(name.replace(".", " ").replace(",", " ").split()).lower()
+    if n in ("washington d c", "washington dc", "dc", "d c"):
+        return "DC"
+    if n.upper() in STATE_NAMES:
+        return n.upper()
+    return STATE_CODES.get(n, "")
+
+
+def states_in(text: str) -> list[str]:
+    """US states a piece of text names, in order: full names ('Welcome to
+    Alabama'), 'City, ST' abbreviations and Washington, D.C."""
+    out = []
+    if _DC.search(text):
+        out.append("DC")
+        text = _DC.sub(" ", text)
+    for m in _CITY_ST.finditer(text):
+        if m.group(1) in STATE_NAMES and m.group(1) not in out:
+            out.append(m.group(1))
+    low = " " + " ".join(re.findall(r"[a-z]+", text.lower())) + " "
+    for name in sorted(STATE_CODES, key=len, reverse=True):  # "west virginia" before "virginia"
+        if f" {name} " in low:
+            low = low.replace(f" {name} ", " ")
+            if STATE_CODES[name] not in out:
+                out.append(STATE_CODES[name])
+    return out
+
+
+def phone_places(text: str) -> list[tuple[str, str]]:
+    """(city or '', state code) for each US phone number in the text, resolved
+    offline from the area code and exchange (libphonenumber's geocoder data).
+    Toll-free and other non-geographic numbers reveal nothing and are skipped.
+    The number itself never leaves this machine."""
+    try:
+        import phonenumbers
+        from phonenumbers import PhoneNumberType, geocoder
+    except ImportError:
+        return []
+    out = []
+    for m in phonenumbers.PhoneNumberMatcher(text, "US"):
+        n = m.number
+        if phonenumbers.region_code_for_number(n) != "US":
+            continue
+        if phonenumbers.number_type(n) in (PhoneNumberType.TOLL_FREE, PhoneNumberType.PREMIUM_RATE,
+                                           PhoneNumberType.SHARED_COST, PhoneNumberType.VOIP,
+                                           PhoneNumberType.PERSONAL_NUMBER, PhoneNumberType.UAN):
+            continue
+        desc = geocoder.description_for_number(n, "en")  # "Huntsville, AL" or "Alabama"
+        city, _, st = desc.rpartition(",")
+        code = state_code(st) if city else state_code(desc)
+        if code:
+            place = (city.strip() if city else "", code)
+            if place not in out:
+                out.append(place)
+    return out
+
+
+def strip_phones(text: str) -> str:
+    return " ".join(PHONE.sub(" ", text).split())
+
+
 @dataclass
 class TextIntel:
     kind: str

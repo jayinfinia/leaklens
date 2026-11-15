@@ -113,7 +113,22 @@ ATTRIBUTION_MAX_CLUES = int(os.getenv("LEAKLENS_ATTRIBUTION_MAX", "8"))
 # Optional: search detected sign text on OpenStreetMap (Nominatim).
 # Off by default because it sends the text off this machine.
 TEXT_LOOKUP = os.getenv("LEAKLENS_TEXT_LOOKUP", "0") == "1"
-LOOKUP_MAX_QUERIES = int(os.getenv("LEAKLENS_LOOKUP_MAX", "8"))
+LOOKUP_MAX_QUERIES = int(os.getenv("LEAKLENS_LOOKUP_MAX", "12"))  # Nominatim calls per photo (1/s)
+LOOKUP_MAX_PER_TEXT = int(os.getenv("LEAKLENS_LOOKUP_MAX_PER_TEXT", "6"))  # so one sign can't use them all
+# A result counts only if the sign's words are in the place's *name* (not its
+# address). RapidFuzz similarity 0-100 between sign and name.
+NAME_MATCH_MIN = float(os.getenv("LEAKLENS_NAME_MATCH_MIN", "85"))
+NAME_TOKEN_MIN = 80  # per-word fuzzy match (OCR slips like PARLAMENT); words of 4 letters or less must be exact
+# Searches near the AI model's guessed city first: a box this many km around it.
+LOOKUP_VIEWBOX_KM = float(os.getenv("LEAKLENS_LOOKUP_VIEWBOX_KM", "30"))
+# A US state needs this much evidence (StreetCLIP probability, AI confidence,
+# phone area code, state named on a sign) before a match there can be strong.
+LOOKUP_PRIOR_MIN = float(os.getenv("LEAKLENS_LOOKUP_PRIOR_MIN", "0.1"))
+# How much each kind of evidence adds to a state's prior.
+PRIOR_PHONE = 0.7  # area codes travel with mobile phones and ported numbers
+PRIOR_STATE_TEXT = 0.8
+# Readings two sources (OCR, AI model) agree on, compared with RapidFuzz.
+READING_AGREE_MIN = 85
 OVERPASS_URL = os.getenv("LEAKLENS_OVERPASS_URL", "https://overpass-api.de/api/interpreter")
 NEARBY_M = 300  # two clues this close together corroborate each other
 NOMINATIM_URL = os.getenv("LEAKLENS_NOMINATIM_URL", "https://nominatim.openstreetmap.org/search")

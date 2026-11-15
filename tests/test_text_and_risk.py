@@ -181,7 +181,9 @@ def test_one_clear_place_in_the_hinted_region_is_strong(monkeypatch):
     assert m.confidence == "strong" and "Charlottesville" in m.name
 
 
-def test_specific_multiword_name_is_strong_without_a_hint(monkeypatch):
+def test_specific_name_found_unhinted_in_an_unpredicted_state_is_only_possible(monkeypatch):
+    """A name found nationwide, in a state nothing else in the photo points to
+    (the models say D.C.), is a possible match, not a strong one."""
     from app import config
 
     monkeypatch.setattr(config, "MOCK_MODE", False)
@@ -191,6 +193,20 @@ def test_specific_multiword_name_is_strong_without_a_hint(monkeypatch):
     clue = Clue(id="t", kind="text", category="text:name", label="POPPY & PARLIAMENT", score=0.5,
                 box=[0, 0, 1, 1], reason="r", weight=2.5)
     m = lookup_mod.lookup([clue], _geo_dc())[0]
+    assert m.confidence == "weak" and "Huntsville" in m.name and "Alabama" in m.note
+
+
+def test_specific_name_is_strong_when_other_evidence_names_its_state(monkeypatch):
+    from app import config
+
+    monkeypatch.setattr(config, "MOCK_MODE", False)
+    hit = (("Poppy & Parliament, Huntsville, Alabama", 34.73, -86.59, "pub"),)
+    monkeypatch.setattr(lookup_mod, "_search",
+                        lambda q, countrycodes="": () if "," in q else hit)
+    clues = [Clue(id="t", kind="text", category="text:name", label="POPPY & PARLIAMENT", score=0.5,
+                  box=[0, 0, 1, 1], reason="r", weight=2.5),
+             _text("w", "Welcome to Alabama", "place", score=0.2)]
+    m = [x for x in lookup_mod.lookup(clues, _geo_dc()) if x.clue_id == "t"][0]
     assert m.confidence == "strong" and "Huntsville" in m.name
 
 

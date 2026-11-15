@@ -37,3 +37,19 @@ def photo() -> bytes:
 @pytest.fixture
 def photo_no_gps() -> bytes:
     return to_jpeg(textured_image(), gps=False)
+
+
+@pytest.fixture(autouse=True)
+def no_nominatim(monkeypatch):
+    """Tests never reach OpenStreetMap: unfaked Nominatim calls find nothing,
+    instantly, and nothing is cached between tests."""
+    from app.pipeline import lookup
+
+    def offline(url):
+        raise OSError("network disabled in tests")
+
+    monkeypatch.setattr(lookup, "_get_json", offline)
+    monkeypatch.setattr(lookup, "_MIN_INTERVAL", 0.0)
+    lookup._nominatim.cache_clear()
+    yield
+    lookup._nominatim.cache_clear()

@@ -11,3 +11,5 @@ transformers>=4.45  # tested on 4.46 and 5.x
 easyocr>=1.7
 geoclip>=1.2
 pyobjc-framework-Vision>=10.0; sys_platform == "darwin"  # Apple Vision OCR (Live Text engine)
+rapidfuzz>=3.0  # sign-text lookup: check a result's name against the sign (MIT)
+phonenumbers>=8.13  # offline area-code -> state for phone numbers on signs (Apache-2.0)

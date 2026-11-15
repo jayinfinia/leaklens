@@ -7,6 +7,7 @@ package). Columns: name, state (USPS code), lat, lon, population.
 """
 
 import csv
+import re
 import math
 from dataclasses import dataclass
 from functools import lru_cache
@@ -161,3 +162,116 @@ def describe(lat: float, lon: float) -> tuple[str, float | None]:
     if d <= 100:
         return f"near {c.label}", round(d, 1)
     return "", None
+
+
+# ------------------------------------------------------------ places named in sign text
+# "NASHVILLE TEENESSEE" on a sign, "WELCOME TO Fabulous LAS VEGAS NEVADA":
+# a city and its state printed together are a place clue on their own, no
+# map search needed. OCR slips are tolerated in longer words only.
+_STREET_WORDS = {
+    "st", "street", "ave", "av", "avenue", "rd", "road", "blvd", "boulevard", "dr", "drive", "ln", "lane",
+    "way", "pkwy", "parkway", "hwy", "highway", "ct", "court", "pl", "place", "sq", "square", "ter",
+    "terrace", "cir", "circle", "trl", "trail", "pike", "expy", "fwy", "freeway", "turnpike", "aly", "alley",
+}
+_STATE_WORDS = {name.lower(): code for code, name in STATES.items() if code != "DC"}
+STATE_FUZZY_MIN = 85  # RapidFuzz ratio; only for names of 6+ letters ("TEENESSEE" -> Tennessee)
+_DC = re.compile(r"\bwashington,?\s*d\.?\s?c\b\.?|\bdistrict of columbia\b", re.I)
+CITY_FUZZY_MIN = 88   # cities are only fuzzy-matched within a state the same text names
+
+
+@dataclass(frozen=True)
+class Mention:
+    """A place named in a piece of text: a city with its state ("paired"),
+    a city alone, or a state alone (city is None)."""
+    city: City | None
+    state: str
+    paired: bool = False
+
+
+def _state_of(words: str) -> str:
+    from rapidfuzz import fuzz
+
+    if words in _STATE_WORDS:
+        return _STATE_WORDS[words]
+    if len(words.replace(" ", "")) < 6:
+        return ""
+    size = len(words.split())
+    pool = [s for s in _STATE_WORDS if len(s.split()) == size]  # "washington st" is not a state
+    if not pool:
+        return ""
+    best = max(pool, key=lambda s: fuzz.ratio(words, s))
+    ok = fuzz.ratio(words, best) >= STATE_FUZZY_MIN and words[0] == best[0]
+    return _STATE_WORDS[best] if ok else ""
+
+
+def named_places(text: str) -> list[Mention]:
+    """Cities and states a sign names. A state or city followed by a street
+    word ("Georgia Ave", "Denver St") is a street, not a place."""
+    from rapidfuzz import fuzz
+
+    text = text or ""
+    dc = []
+    if _DC.search(text):
+        city = find("Washington, D.C.")
+        dc.append(Mention(city, "DC", city is not None))
+        text = _DC.sub(" ", text)
+    orig = re.findall(r"[A-Za-z]+", text)
+    toks = [w.lower() for w in orig]
+    n = len(toks)
+    used = [False] * n
+
+    def street_after(j: int) -> bool:
+        return j < n and toks[j] in _STREET_WORDS
+
+    def free(i: int, j: int) -> bool:
+        return j <= n and not any(used[i:j])
+
+    # 1. full state names (longest first); "Kansas City" stays a city
+    states: list[tuple[int, int, str]] = []
+    for size in (3, 2, 1):
+        for i in range(n - size + 1):
+            if not free(i, i + size):
+                continue
+            code = _state_of(" ".join(toks[i:i + size]))
+            if not code or street_after(i + size):
+                continue
+            if any(_key(" ".join(toks[i:i + size + k])) in _by_name() for k in (1, 2) if i + size + k <= n):
+                continue
+            states.append((i, i + size, code))
+            for k in range(i, i + size):
+                used[k] = True
+    codes = {s for _, _, s in states}
+
+    # 2. cities: exact names, or near-misses inside a state the text names
+    out: list[Mention] = []
+    for size in (3, 2, 1):
+        for i in range(n - size + 1):
+            if not free(i, i + size) or street_after(i + size):
+                continue
+            words = " ".join(toks[i:i + size])
+            if len(words.replace(" ", "")) < 4:
+                continue
+            hits = _by_name().get(_key(words), [])
+            if not hits and codes and len(words.replace(" ", "")) >= 6:
+                pool = [c for c in cities() if c.state in codes]
+                best = max(pool, key=lambda c: fuzz.ratio(words, _key(c.name)), default=None)
+                if best is not None and fuzz.ratio(words, _key(best.name)) >= CITY_FUZZY_MIN:
+                    hits = [best]
+            if not hits:
+                continue
+            # paired: the state follows the city (one word between at most), or "City, ST"
+            after = {s for a, _, s in states if i + size <= a <= i + size + 1}
+            if i + size < n and len(orig[i + size]) == 2 and orig[i + size].isupper():
+                after.add(orig[i + size])
+            pair = next((c for c in hits if c.state in after), None)
+            if pair is not None:
+                out.append(Mention(pair, pair.state, True))
+            elif len({c.state for c in hits}) == 1:
+                out.append(Mention(hits[0], hits[0].state, False))
+            else:
+                continue
+            for k in range(i, i + size):
+                used[k] = True
+    paired_states = {m.state for m in out if m.paired}
+    out += [Mention(None, s) for _, _, s in states if s not in paired_states]
+    return dc + out

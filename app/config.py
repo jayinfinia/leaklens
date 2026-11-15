@@ -127,6 +127,18 @@ LOOKUP_PRIOR_MIN = float(os.getenv("LEAKLENS_LOOKUP_PRIOR_MIN", "0.1"))
 # How much each kind of evidence adds to a state's prior.
 PRIOR_PHONE = 0.7  # area codes travel with mobile phones and ported numbers
 PRIOR_STATE_TEXT = 0.8
+PRIOR_CITY_TEXT = 0.3  # a well-known city named alone on a sign ("DOWNTOWN PHOENIX")
+# Chains and brands (app/data/brands.txt, from the name-suggestion-index) and
+# names that many far-apart places share are never strong matches on their own.
+CHAIN_MIN_PLACES = 3  # this many separate places (>50 km apart) in 2+ states: a chain or common name
+# Common street names ("16th St N", "E Lake St") are strong only at an
+# intersection, or when evidence other than the AI model's guess puts this much
+# weight on one state and that state has a single such street.
+GENERIC_STREET_PRIOR_MIN = 0.6
+# "1000 OSAGE" on a sign: compare with OSM's house number and street, and if
+# OSM has no address for a candidate, search "<number> <street>" around it.
+LOOKUP_MAX_ADDRESS = 2  # address searches per photo
+ADDRESS_NEAR_M = 150
 # Readings two sources (OCR, AI model) agree on, compared with RapidFuzz.
 READING_AGREE_MIN = 85
 OVERPASS_URL = os.getenv("LEAKLENS_OVERPASS_URL", "https://overpass-api.de/api/interpreter")

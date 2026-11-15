@@ -1,0 +1,3980 @@
+# Chain and brand names seen in the US, one per line. Used by
+# app/pipeline/lookup.py: a sign that only names a chain is never a strong
+# location match on its own.
+#
+# Source: name-suggestion-index (https://github.com/osmlab/name-suggestion-index),
+# data/brands/**, commit a070fe6d5b98 (2026-11-14). BSD 3-Clause License,
+# Copyright 2026, name-suggestion-index contributors. Kept: the `brand` and
+# `name` tags of entries whose locationSet includes the US (us, us-*, 001,
+# 019, 021, 003), ASCII only, at least 3 letters or digits.
+#
+# Additions by LeakLens (not in the index: taxi brands shared by many unrelated
+# companies, and products advertised on signs everywhere) follow the index's
+# list, after the line "# leaklens additions".
+% Arabica
+& Other Stories
+&pizza
+100 Montaditos
+110 Grill
+1st Franklin Financial
+1st Heritage Credit
+1st Security Bank
+1st Stop
+24 Hour Fitness
+24 Hour Fitness Sport
+24 Hour Fitness Super Sport
+2nd STREET
+5.11 Tactical
+54th Street Grill and Bar
+585 Gold
+7 Brew
+7 For All Mankind
+7 Leaves Cafe
+7 Up
+7-Eleven
+84 Lumber
+99 Cents Only Stores
+99 Ranch Market
+9Round
+@HOME
+[solidcore]
+A-1 Self Storage
+A-MAX Auto Insurance
+A.C. Moore
+A.P.C.
+AAA Insurance
+AAMCO
+Aaron Brothers
+Aaron's
+Abarth
+Abbott's Frozen Custard
+Abby's
+Abby's Pizza
+ABC
+ABC Supply
+ABC Warehouse
+Abercrombie & Fitch
+Abercrombie Kids
+Abound Credit Union
+AC Hotel
+Academy Sports + Outdoors
+Accenture
+ACE Cash Express
+Ace Hardware
+Acme
+Acura
+ADA
+Adagio
+Adam & Eve
+Adecco
+Adidas
+Adidas Originals
+Admiral
+Advance America
+Advance Auto Parts
+Advance Financial
+Advocate Health Care
+Aerie
+Aeropostale
+Aesop
+AFCN
+Aflac
+Afriquia
+AFURI
+Agatha
+Agent Provocateur
+Agip Eni
+Agribank
+AHEPA
+AHEPA Hall
+Ahern Rentals
+Aiden
+Aigner
+AIM Recycling
+Air Liquide
+Airgas
+Aixam
+AL Prime Energy
+Al's Beef
+Aladdin Bail Bonds
+Aladdin's Eatery
+Alamo
+Alamo Drafthouse Cinema
+Albertsons
+Albertsons Market
+Albertsons Pharmacy
+Aldi
+Aldo
+Alex and Ani
+Alexander McQueen
+Alfa Insurance
+Alfa Romeo
+Alice
+Alice + Olivia
+Alila
+All'Antico Vinaio
+Allbirds
+Allen Edmonds
+Alliance
+Alliance Tire Company
+Allianz
+Allied Universal
+Allpoint
+AllSaints
+Allstate
+Allsup's
+Alltown
+Alltown Fresh
+Aloft
+Aloha Island Mart
+Aloha Petroleum
+Alon
+AlphaGraphics
+Alpine
+Alstom
+Alta Convenience
+Altar'd State
+Altitude
+Altorfer CAT
+Alua
+Alua Hotels & Resorts
+Amato's
+Amazing Intimate Essentials
+Amazing Lash Studio
+Amazon
+Amazon Books
+Amazon Fresh
+Amazon Go
+Amazon Hub
+Amazon Locker
+AMC
+Amegy Bank
+Amegy Bank of Texas
+America First Credit Union
+America's Best Contacts & Eyeglasses
+America's Car-Mart
+American Automobile Association
+American Crypto
+American Deli
+American Eagle Financial Credit Union
+American Eagle Outfitters
+American Family Insurance
+American Freight
+American Girl
+American Greetings
+American Legion
+American Legion Hall
+American National University
+American Red Cross
+American Roofing Supply
+American Signature Furniture
+American Tire Depot
+American Vintage
+Americas Best Value Inn
+AmericInn
+AmeriGas
+Ameriprise Financial
+Ameris Bank
+Amerisleep
+AmeriStop
+Amici
+Amigo
+Amigos
+Amiri Salon
+Amoco
+Amorino
+Amplifon
+ampm
+ampUp
+Amscot
+AMVETS
+AMVETS Post
+AMVETS Thrift Store
+Amy's Ice Creams
+Anatomie
+ANdAZ
+Androscoggin Bank
+Andy's Frozen Custard
+Angelo Caputo's Fresh Markets
+Ann Taylor
+Anthony's Coal Fired Pizza
+Anthropologie
+Anytime Fitness
+APlus
+APM Monaco
+Apollo Tyres
+Apple Bank
+Apple Store
+Applebee's
+Applebee's Neighborhood Grill & Bar
+Applegreen
+Applegreen Electric
+Appliance Repair by Asurion
+Aqua-Tots Swim Schools
+AR Workshop
+Arby's
+arc Thrift Store
+arc Thrift Stores
+Arc'teryx
+Arche
+Arco
+Arctic Circle
+Ardene
+Arhaus
+Aristocrazy
+Aritzia
+Arket
+Armani Exchange
+Aroma Espresso Bar
+Aroma Joe's
+Arooga's
+Arthur Murray Dance Center
+Arvest Bank
+Ascend Hotel Collection
+Ashford Communities
+Ashley HomeStore
+Asian Paints
+ASICS
+Aspen Dental
+Associated Bank
+AssuredPartners
+Aston Martin
+Astro
+Asurion Tech Repair & Solutions
+At Home
+AT&T
+Athena Bitcoin
+Athleta
+Athletico Physical Therapy
+ATI Physical Therapy
+Atlantic Union Bank
+Attic Salt
+Atwoods
+Au Bon Pain
+Aubade
+Aubuchon Hardware
+Audemars Piguet
+Audi
+Auntea Jenny
+Auntie Anne's
+Aurelio's Pizza
+Austin Bank
+Auto Plus
+Auto Value
+Autograph Collection
+AutoNation
+AutoZone
+AVA
+Avalon
+Aveda
+Aveda Institute
+Avenue
+Averitt Express
+avid Hotel
+Avis
+Avon
+AW LAB
+Away
+AXA
+Azzip Pizza
+B&B Theatres
+B-Bop's
+B.C. Pizza
+b8ta
+Ba&sh
+babyGap
+Bach to Rock
+Bacio di Latte
+Back Yard Burgers
+Badcock
+Badcock Home Furniture &more
+Bafang Dumpling
+Bag O' Crab
+Bahama Breeze
+Baja Fresh
+Bakers Delight
+Balenciaga
+Baleno
+Bally
+Bamboo Sushi
+Bambu
+Banana Republic
+Banfield Pet Hospital
+Bang & Olufsen
+Bangkok Bank
+Bangor Savings Bank
+Bank of Albuquerque
+Bank of America
+Bank of Baroda
+Bank of Hawaii
+Bank of India
+Bank of New Hampshire
+Bank of Oklahoma
+Bank of Texas
+Bank of the Sierra
+Bank OZK
+Bankers Life
+BankFinancial
+BankWest
+Banner Bank
+Banter by Piercing Pagoda
+Banyan Tree
+Bar Harbor Bank & Trust
+Bar Louie
+Barberitos
+Barbour
+Barclays
+bareMinerals
+Barnes
+Barnes & Noble
+Barnes & Noble College
+Barneys New York
+Barre3
+Barro's Pizza
+Barry's
+Bartaco
+Bartell Drugs
+Bashas'
+Baskin-Robbins
+Bass Pro Shops
+Bassett Furniture
+Bata
+Bath & Body Works
+Batteries Plus Bulbs
+Baume & Mercier
+Bay Wheels
+Baymont
+bb.q Chicken
+BCD Tofu House
+BCycle
+bd's Mongolian Grill
+Beacon
+Bealls
+Bear Paddle Swim School
+BECU
+BedMart
+Beef O'Brady's
+Beggars Pizza
+Beko
+Bel Air
+Belk
+Belle Tire
+BellStores
+Belmond
+Beltone
+Ben & Jerry's
+Ben Bridge
+Ben's Cookies
+Bench.
+bene
+Benefit
+Benefit Brow Bar
+Benevolent and Protective Order of Elks
+BenGong's Tea
+Benihana
+Benjamin Moore
+Bennigan's
+Bentley
+Bento Sushi
+Berkot's Super Foods
+Berkshire Bank
+Berkshire Hathaway HomeServices
+Berlitz
+Bershka
+Bertucci's
+Best
+Best Brains
+Best Buy
+Best Buy Express
+Best Hotels
+Best Western
+Best Western Plus
+Best Western Premier
+Better Buzz Coffee
+Betty Barclay
+BevMo!
+Beyfin
+Beyond Hello
+BI-LO
+Bi-Mart
+Biba
+Big 5 Sporting Goods
+Big Apple
+Big Apple Bagels
+Big Blue Swim School
+Big Boy
+Big Brand Tire & Service
+Big Brothers Big Sisters Lone Star
+Big D Oil
+Big Lots
+Big O Tires
+Big Orange
+Big Red
+Big Red Stores
+Big Y
+BigBelly
+Biggby Coffee
+Bijou Brigitte
+Bike Chattanooga
+Bike Share Connect
+BikeNHV
+Biki
+Bill Miller Bar-B-Q
+Billabong
+Bimba y Lola
+Binny's Beverage Depot
+BioBag
+Birkenstock
+Biscuitville
+Bitcoin Depot
+BJ's
+BJ's Gas
+BJ's Wholesale Club
+Black Angus
+Black Bear Diner
+Black Red White
+Black Rock Coffee
+Black Sheep Coffee
+Blackjack Pizza
+Blain's Farm & Fleet
+Blake's Lotaburger
+Blancpain
+Blank Street Coffee
+Blast Fitness
+Blaze Pizza
+Blimpie
+Blinds to Go
+Blink
+Blink Fitness
+Block Advisors
+Blockbuster
+Bloomingdale's
+Blue Beacon
+Blue Bottle Coffee
+Blue Federal Credit Union
+Blue Nile
+Blue Rhino
+Blue Star Donuts
+Bluebikes
+bluemercury
+BluePearl
+BMO
+BMV Connect
+BMW
+BMW Motorrad
+BNI
+BNP Paribas
+Boar's Head
+Board & Brew
+Boarders by Cobblestone
+Bob Evans
+Bob's Discount Furniture
+Bob's Stores
+Boba Guys
+Bobablastic
+Bobbi Brown
+BOC
+BoConcept
+Body Details
+Body Glove
+Bodystreet
+BOGGI Milano
+Bogner
+Bojangles'
+BOK Financial
+Bomgaars
+Bonanza Steakhouse
+Bonchon Chicken
+Bonefish Grill
+Bonobos
+BonWorth
+BookCrossing
+Books-A-Million
+Boost Mobile
+Boot Barn
+Bosch
+Bosch Car Service
+Bosco
+Boscov's
+Bose
+Boston Consulting Group
+Boston Market
+Boston Pizza
+Bottega Veneta
+BottleDrop
+BottleDrop Express
+BottleDrop Plus
+BottleDrop Redemption Center
+Boulder B-cycle
+Bowlero
+BoxLunch
+Boyd CAT
+Boys & Girls Club
+bp pulse
+BP Shop
+Braganza Tea
+Brakes Plus
+Brandy Melville
+Bras N Things
+Braum's
+Bravo
+BRAX
+Breeze Bike Share
+Breguet
+Breitling
+BrewDog
+BreWingZ
+Bricks & Minifigs
+Bridgestone
+Briggs Equipment
+Bright Horizons
+Bright Now! Dental
+Brighton Collectibles
+BrightPath
+Brio
+Broadview Federal Credit Union
+Brooks Brothers
+Brookshire Brothers
+Brookshire Brothers Pharmacy
+Brookshire's
+Brookshire's Pharmacy
+Brookstone
+Brow Art 23
+Brow Studio 7
+Brown Bear Car Wash
+Brown's Chicken
+Bruegger's Bagels
+Bruin Bike Share
+Brunello Cucinelli
+Bruster's Ice Cream
+Bubba Gump Shrimp Company
+Bubba's 33
+Bubbakoo's Burritos
+Bublr Bikes
+Buc-ee's
+Buca di Beppo
+Buccellati
+Buck Mason
+Buckle
+Buddy's Pizza
+Budget
+Budget Host Inn
+Budget Truck Rental
+Buffalo Exchange
+Buffalo Wild Wings
+Buffalo Wings & Rings
+bugatti
+Bugatti
+Buick
+Build-A-Bear Workshop
+Builders FirstSource
+Bulgari
+bulthaup
+Bumper to Bumper Auto Parts
+Bumpers
+Buona
+Burberry
+Burger & Lobster
+Burger King
+Burger Street
+BurgerFi
+BurgerFuel
+BurgerIM
+Burgerville
+Burlington
+Burn Boot Camp
+Busey Bank
+Bush's Chicken
+Butera Market
+Butler CAT
+Buy Buy Baby
+Bvlgari
+BW Premier Collection
+BW Signature Collection
+BYD
+Byrider
+Byrne Dairy
+Byrne Dairy & Deli
+C Spire
+C-A-L Ranch
+C-Town
+C-Town Supermarkets
+C2 Education
+Cabela's
+Cabinets To Go
+Cadence Academy Preschool
+Cadence Bank
+Cadillac
+Cafe Coffee Day
+Cafe Rio
+Caliber Car Wash
+Caliber Collision
+Calida
+California Check Cashing Stores
+California Closets
+California Coast Credit Union
+California Fish Grill
+California Pizza Kitchen
+California Tortilla
+California Welcome Center
+Call It Spring
+Calliope
+Caltex
+Calvin Klein
+Calzedonia
+Cambria Hotel
+Camden
+Camden National Bank
+Campanile
+Camper
+Camping World
+Canada Goose
+Canali
+Canandaigua National Bank & Trust
+Candlewood Suites
+Candy Tyme
+Canna Cabana
+Cannabist
+Canopy
+Capital Bikeshare
+Capital Electric
+Capital One
+CapMetro Bikeshare
+Capriotti's
+Caprock
+Captain D's
+Car-X
+Carbon Health
+Cardenas
+Cardtronics
+Carglass
+Carhartt
+Carhartt Work in Progress
+Caribbean Cinemas
+Caribou Coffee
+Caritas
+Carl's Jr.
+CarMax
+Carpet One Floor & Home
+Carquest
+Carrabba's Italian Grill
+Carroll
+Carroll Motor Fuels
+CarShop
+Carstar
+Carter's
+Cartier
+Cartridge World
+Carvel
+Casey's
+Casey's General Store
+Cash America International
+Cash America Pawn
+Cash Store
+CashMax
+Casino
+Casper
+Cassano's Pizza King
+Castle Dental
+CAT Scale
+Cathay Bank
+Catherines
+Catimini
+Cato
+CAVA
+CBRE
+CCC
+CD One Price Cleaners
+CDPHP Cycle
+CEFCO
+Celine
+Celio
+Cell Phone Repair
+Cellairis
+Cellaxs
+Cenex
+Centennial Bank
+Centerstone
+Central Bank
+Century 21
+Century Theatres
+CenturyLink
+Cermak Fresh Market
+CertaPro Painters
+Certified
+Chagee
+Champion
+Champs Chicken
+Champs Sports
+Chanel
+Chapters
+ChargePoint
+Charles Schwab
+Charles Tyrwhitt
+Charleys Philly Steaks
+Charlotte Russe
+Chase
+Chateau d'Ax
+Chatime
+Chaumet
+Check 'n Go
+Check Into Cash
+Checkers
+CheckSmart
+Cheddar's
+Cheeburger Cheeburger
+CHEF'STORE
+Chemeketa Cooperative Regional Library Service
+Chemmanur International Jewellers
+Chery
+Chester's
+Chesterbrook Academy
+Chevrolet
+Chevron
+Chevys
+Chevys Fresh Mex
+Chicco
+Chicha San Chen
+Chick-fil-A
+Chicken Express
+Chicken Salad Chick
+Chico's
+Chico's Off the Rack
+Childcare Network
+Children's Learning Adventure
+Childtime
+Chili's
+Chilli Beans
+Chimcking
+Chime
+China Construction Bank
+China Wok
+Chipotle
+Chopard
+Chopt
+Christian Brothers Automotive
+Christian Science Reading Room
+Christmas Tree Shops
+Christopher & Banks
+Chrysler
+Chuck E. Cheese
+Church's Chicken
+Chuy's
+CIBC Bank USA
+Cicis
+Cinemark
+Cinnabon
+Cinnaholic
+cintas
+Circle K
+Citgo
+Citi Bike
+Citi Trends
+Citibank
+citizenM
+Citizens Bank
+Citrix Cycle
+City Electric Supply
+City Market
+City Mill
+City National Bank
+Claim Jumper
+claire's
+Clarion
+Clarion Pointe
+Clark
+Clark's Pump-N-Shop
+Clarks
+Clarkson Eyecare
+Classic Collision
+Claudie Pierlot
+Clean Eatz
+Clean Energy
+Clean Juice
+Clinical Pathology Laboratories
+Club Champion
+Club Fitness
+Club Med
+Club Monaco
+Club Pilates
+Club Wyndham
+Cluck-U Chicken
+CMG Financial
+CNN Newsstand
+CO-OP Financial Services
+Coach
+Cobblestone Hotel & Suites
+Cobblestone Hotels
+Cobblestone Inn & Suites
+COBS Bread
+Coca-Cola
+Coccinelle
+CoCo
+CoCo Fresh Tea & Juice
+CoCo Ichibanya
+Coco's Bakery
+Codale
+Code Ninjas
+Coen Markets Inc
+Coffee Republic
+Coffee Time
+Coffeeshop Company
+CoGo
+CoGo Bike Share
+Cohen's Fashion Optical
+CoinFlip
+Coinhub
+Coinsource
+Coinstar
+Cold Stone Creamery
+Coldwell Banker
+Cole Haan
+Colin's
+Color Me Mine
+Colorado MV Express
+Columbia
+Columbia Bank
+Comerica Bank
+Comfort Dental
+Comfort Inn
+Comfort Inn & Suites
+Comfort Suites
+Commerce Bank
+Commercial Tire
+Commonwealth Bank
+Community Bank
+Community First Credit Union
+Comparion Insurance Agency
+Compass Self Storage
+Condado Tacos
+Connect Hearing
+ConnectOne Bank
+Conoco
+Conrad
+Conselho Tutelar
+Consume
+Consumers Credit Union
+Convenient Food Mart
+Converse
+Cook Out
+Cookies by Design
+Cooper Electric
+Cooper Tire & Rubber Company
+Cooper's Hawk
+Copeland's
+CorePower Yoga
+Corner Bakery
+Cort
+Cort Furniture Outlet
+Cort Furniture Rental
+COS
+Cosechas
+CosmoProf
+Cost Cutters
+Costa
+Costa Drive Thru
+Costa Vida
+Costco
+Costco Business Center
+Costco Food Court
+Costco Gasoline
+Costco Hearing Aid Center
+Costco Optical
+Costco Pharmacy
+Costco Tire Center
+Costco.com
+Cottage Inn Pizza
+Cotton On
+Cotton On Body
+Cotton On Kids
+Cotton Patch Cafe
+Country Financial
+Country Inn & Suites
+Country Kitchen
+Country Pride
+Country Waffles
+CountryMax
+Courtyard
+Cousins Subs
+Coyote Ugly
+Coyote Ugly Saloon
+Cracker Barrel
+Crash Champions
+Crate & Barrel
+Crawford
+Credit Union of Texas
+Cricket Wireless
+Crocs
+CrossCountry Mortgage
+CrossFit
+Crown
+Crowne Plaza
+Cruise Planners
+Crumbl Cookies
+Crunch Fitness
+Cryptobase
+CSL Plasma
+Cub Foods
+CubeSmart
+Culver's
+Cumberland Farms
+Cupra
+Curaleaf
+Curio Collection
+Curves
+Cushman & Wakefield
+Custard Insurance Adjusters
+CVS Pharmacy
+Cycle Gear
+CycleBar
+D&W Fresh Market
+D'Agostino
+D'Angelo Grilled Sandwiches
+D.P. Dough
+Dacia
+DAF
+Daihatsu
+Dairy Queen
+Daiso
+Daiso Japan
+Dallas BBQ
+daltile
+Daltile
+Daniel's
+Daniel's Jewelers
+Dari Mart
+Dash In
+Davanni's
+Dave & Buster's
+Dave's Hot Chicken
+DaVi Nails
+David Yurman
+David's Bridal
+DavidsTea
+Daylight Donuts
+Days Inn
+Dayspring Bank
+dd's Discounts
+DeFacto
+Defender
+Deichmann
+deka lash
+Deka Lash
+Del Frisco's Double Eagle Steakhouse
+Del Taco
+Deloitte
+Delta
+Delta Hotels
+Delta Sonic
+Delta Sonic Car Wash
+Denizbank
+Denny's
+DentalWorks
+Dentix
+Dentons
+Derimod
+Design Hotels
+Design Within Reach
+Desigual
+Destination by Hyatt
+Destination Maternity
+Deutsche Bank
+Devialet
+DeVry University
+DGX
+DHL
+Dia Market
+Diamond Bank
+Diamond Resorts
+Diamond Shamrock
+DiBella's Subs
+Dick's House of Sport
+Dick's Sporting Goods
+Dickey's Barbecue Pit
+Dierbergs
+Diesel
+Dig
+Digicel
+Digital Federal Credit Union
+Dillard's
+Dillons
+Din Tai Fung
+Ding Tea
+Dinh Van
+Dior
+Dippin' Dots
+Diptyque'
+Direct Auto Insurance
+Dirt Cheap
+Disc Replay
+Discount Drug Mart
+Discount Tire
+Discovery
+Discovery Clothing Company
+DISH
+Disney Store
+Distri Club Medical
+District Taco
+Divvy
+Dixy Chicken
+DKNY
+DMV Now
+Do it Best
+Doctors of Physical Therapy
+Dodge
+Dodo Pizza
+Dog Haus
+Doggie Walk Bags
+DogiPot
+Dogtopia
+Dolce & Gabbana
+Dolcezza
+Dollar Bank
+Dollar Car Rental
+Dollar General
+Dollar General Market
+Dollar Tree
+Domino's
+Don Don Donki
+Don Roberto Jewelers
+Donatos Pizza
+Dooney & Bourke
+Dott
+DoubleDave's Pizzaworks
+DoubleTree
+Dough Zone
+DPD
+DQ Grill & Chill
+Dr. Martens
+Dream Dinners
+Dress Barn
+DriveTime
+Drury Inn & Suites
+Drybar
+DryClean USA
+DS Automobiles
+DSW
+DTLR
+Duane Reade
+Ducati
+Duchess
+Duck Donuts
+Duck Thru
+Dufry
+Duluth Trading Company
+Dulux Paints
+Dunham's Sports
+dunhill
+Dunkin'
+Dunlop
+Dunn Brothers Coffee
+Dunn Tire
+Dunn-Edwards Paints
+Durex
+Dutch Bros. Coffee
+Duty Free Americas
+DXL Men's Apparel
+Dynamite
+Dyson
+E.Leclerc
+EagleRider
+Eagles Lodge
+Earls
+Earthbound Trading Company
+EarthWise Pet
+East Coast Wings + Grill
+East of Chicago Pizza
+East West Bank
+Eastern Bank
+Eastern Mountain Sports
+easyHotel
+Eat'n Park
+Eataly
+eaves by Avalon
+Ecco
+Echo Electric
+ecoATM
+Ecobank
+Econo Lodge
+ECPI University
+Eddie Bauer
+Edible Arrangements
+Edina Realty
+Edition
+Educators Credit Union
+Edward Jones
+Eegee's
+Eggs Up Grill
+Eggslut
+Eileen Fisher
+Einstein Bros. Bagels
+El Pollo Loco
+El Rinconsito
+El Super
+EL&N
+Electrify America
+Element
+Elements Massage
+Elephant Bar
+Elevation Burger
+Elisabetta Franchi
+Elks Lodge
+Ellianos Coffee
+ELS
+Emack & Bolio's
+Embassy Suites
+Emler Swim School
+Emma
+EMME
+Empire Beauty School
+Empire Beauty Schools
+Empire CAT
+Emporio Armani
+Enmarket
+Enterprise
+Enterprise Bank & Trust
+Enterprise Car Sales
+Enza Home
+Epic Wings N' Things
+Equinox
+Equipment Depot
+Equity Bank
+ERA Real Estate
+Erbert & Gerbert's
+Erewhon
+Erie Insurance
+Es Teler 77
+Escada
+Escapology
+ESL Federal Credit Union
+Esporta Fitness
+Esprit
+Esso
+Esso Express
+Estrella Insurance
+Etam
+etc.venues
+Ethan Allen
+ETRO
+Eu Yan Sang
+Euronet
+Euronics
+Europcar
+European Wax Center
+Eurostars
+Eurostars Hotel Company
+EV Connect
+EVA
+EVEN Hotel
+EVEN Hotels
+Everbowl
+Evereve
+Evergreens
+Everhome Suites
+Everything But Water
+EvGateway
+EVgo
+Executive Residency
+eXp Realty
+Expedia Cruises
+Expert
+Explore Bike Share
+Express
+Express Employment Professionals
+Express Men
+Express Oil Change & Tire Engineers
+Extended Stay America
+Extra Space Storage
+ExtraMile
+Extreme Pita
+Extreme Pizza
+Exxon
+Eyebrow Plus
+Eyemart Express
+EZ-TAB
+Ezell's Chicken
+EZPAWN
+F.W. Webb Company
+F45 Training
+Faberlic
+Fabick CAT
+Fabletics
+Fabrique
+Fairfield Inn
+Fairfield Inn & Suites
+Fairmont
+Falconeri
+Family Dollar
+Family Express
+Family Fare
+Family Video
+Famous Dave's
+Famous Footwear
+Fannie May
+Fantastic Sams
+Fareway
+Farm Bureau Financial Services
+Farm Bureau Insurance
+Farm Bureau Insurance of Tennessee
+Farm Stores
+Farmer Boys
+Farmers Home Furniture
+Farmers Insurance
+Farmers National Bank
+Fas Mart
+Fashion Market
+FAST STOP
+Fast-Fix
+Fastbreak
+Fastenal
+FastKey
+Fastrac
+Fastrac Cafe
+Fastrack
+Fastsigns
+Fatburger
+Fatz
+Fazoli's
+FedEx
+FedEx Office
+FedEx Ship Center
+Fendi
+Ferguson
+Ferrari
+Ferrellgas
+Fiat
+Fiat Professional
+Ficohsa
+Fidelity Bank
+Fidelity Bank & Trust
+Fidelity Investments
+Fido House
+Fiesta Mart
+Fifth Third Bank
+Figaro's Pizza
+Fiiz Drinks
+Fila
+Fine Wine & Good Spirits
+Finish Line
+Fireaway
+Fireaway Pizza
+Firehouse Subs
+Firestone
+First American Bank
+First Bank
+First Citizens Bank
+First Commonwealth Bank
+First Community Credit Union
+First Convenience Bank
+First Fidelity Bank
+First Financial Bank
+First Hawaiian Bank
+First Horizon Bank
+First Interstate Bank
+First National Bank
+First National Bank Alaska
+First National Bank of East Texas
+First National Bank Texas
+First Neighborhood Bank
+First Security Bank
+First State Bank
+First Stop
+First Tech Federal Credit Union
+First United Bank
+First Virginia
+First Watch
+Fischer Homes
+Fisher & Phillips
+Fisher House
+Fisher Phillips
+Fisker
+Fisker Inc.
+Fitness 19
+Fitness Court
+Fitness Together
+Five Below
+Five Guys
+FiveStar
+Flagstar Bank
+Fleet Farm
+Fleet Feet
+FleetPride
+Fleming's
+Flight Centre
+Flight Club
+Flintco
+Flippin' Pizza
+FLO
+Floor & Decor
+Florida MV Express
+Floyd's 99 Barbershop
+Flyers
+Flying J
+Flying J Travel Center
+FNBO
+Foley
+Food 4 Less
+Food Basics
+Food City
+Food Lion
+FoodLand
+Foodland
+FoodMaxx
+Foods Co
+Foodtown
+Foot Locker
+Foot Solutions
+Footaction
+Ford
+Ford's Garage
+Forever 21
+Forman Mills
+Fortunoff Backyard Store
+Foss Swim School
+Fossil
+Foster's Grille
+Fosters Freeze
+Four Points by Sheraton
+Four Seasons
+Fox in a Box
+Fox's Pizza Den
+FPL EVolution
+Francesca's
+Frank Webb Home
+Franz
+Fraternal Order of Eagles
+Fraternal Order of Police
+Fraternal Order Orioles
+Fred Astaire Dance Studios
+Fred Loya Insurance
+Fred Meyer
+Fred Meyer Jewelers
+Fred Meyer Pharmacy
+Freddo
+Freddy's
+Free People
+Freebirds
+Freeway Insurance
+Freightliner
+French Connection
+Fresh Thyme
+Freshii
+Friendly Express
+Friendly's
+Frisch's Big Boy
+Frost Bank
+Fry's Food and Drug
+Fry's Marketplace
+Fuddruckers
+Fuego
+FuelRod
+Fulton Bank
+Fun Town RV
+Fusalp
+Fuso
+Fuzzy's Taco Shop
+FYE
+G-Star Raw
+G.H. Bass & Co.
+Gabe's
+Gaggenau
+Galito's
+GameStop
+Gander Outdoors
+GANT
+Gap
+Gap Body
+Gap Factory
+Gap Kids
+Garage
+Garner Hotels
+GATE
+GATE Express Car Wash
+Gator's Dockside
+Gatti's Pizza
+Gautier
+Gaylord
+Geek Squad
+Geely
+GEICO
+Gelson's
+Gen Korean BBQ
+Genesis
+Genghis Grill
+Genki Sushi
+Gentle Dental
+George Webb Restaurant
+Georgia MV Express
+Geox
+Gerber Collision & Glass
+German American
+German Doner Kebab
+Gerry Weber
+Gertrude Hawk Chocolates
+GetGo
+Giant
+Giant Eagle
+Giant Eagle Pharmacy
+Giant Pharmacy
+Gigi's Cupcakes
+Gino's East
+Gino's Pizza & Spaghetti House
+Gionino's Pizzeria
+Giordano
+Giordano's Pizzeria
+Giorgio Armani
+Girl Scouts
+Givenchy
+Glacier Water
+Glass Doctor
+Glo
+glo
+Global
+Global Credit Union
+Gloria Jean's
+GLS
+GMC
+GNC
+Go Ape
+Go! Games & Toys
+Godfather's Pizza
+GoHealth Urgent Care
+Gold Star Chili
+Gold's Gym
+Golden 1 Credit Union
+Golden Chick
+Golden Corral
+Golden Goose
+Golden Krust
+Golden Krust Caribbean Bakery & Grill
+Golden Nozzle Car Wash
+Golden Tulip
+Goldfish Swim School
+Goldilocks
+Golf Galaxy
+GOLFTEC
+GoMart
+Gong Cha
+Good 2 Go
+Good Neighbor Pharmacy
+Good Times
+Goodwill
+Goody's
+Goodyear
+Google
+Goosehead Insurance
+Gordmans
+Gordon Food Service Store
+Gorjana
+Graduate
+Graeter's
+Graff
+Grainger
+Granado
+Grand Hyatt
+Grand Line
+Grandy's
+Grange Co-op
+Grange Insurance
+Graybar
+Grease Monkey
+Great American Cookies
+Great Clips
+Great Harvest Bread Company
+Great Wraps
+Green Motion
+Greenbike SLC BikeShare
+Greenpeace
+GreenState Credit Union
+Grid
+Grimaldi's Pizzeria
+Grind
+Gringo's Mexican Kitchen
+Grocery Outlet
+Grotto Pizza
+GTE Financial
+Guaranteed Rate
+Gucci
+Guess
+Guess Accessories
+Guidepost Montessori
+Guild Mortgage Company
+Guinot
+Guitar Center
+Gulf
+Gulf Coast Bank & Trust
+Gulf Express
+Guthrie's
+Guzman y Gomez
+GWM
+Gymboree
+Gyu-Kaku
+H Mart
+H&E Equipment Services
+H&M HOME
+H&R Block
+H-E-B
+H-E-B Car Wash
+H-E-B Fuel
+H-E-B Pharmacy
+H-E-B plus!
+H. Stern
+H10
+H10 Hotels
+Habit Burger & Grill
+Habitat for Humanity ReStore
+Hackett London
+Haffner's
+Haggar
+Haggen
+Haidilao Hot Pot
+Hair Cuttery
+Half Price Books
+HalfPrice
+Hallmark
+Hampton
+Hampton Inn & Suites
+Hancock Whitney
+Hand & Stone Massage and Facial Spa
+Handel's Homemade Ice Cream
+Hanesbrands
+Hangry Joe's Hot Chicken & Wings
+Hanmi Bank
+Hannaford
+Hannaford Pharmacy
+Hannoush Jewelers
+Hapik
+Happy Joe's
+Happy Lamb Hot Pot
+Happy Lemon
+Happy Socks
+Happy's Pizza
+Harbor Freight Tools
+Harcourts
+Hard Rock Cafe
+Hard Rock Hotel
+Hardee's
+Harkins Theatres
+Harley-Davidson
+Harman Kardon
+Harold's Chicken Shack
+Harps
+Harris Teeter
+Harry & David
+Harry Ritchie's
+Havaianas
+Haval
+Havertys
+Hawaii DMV Now
+Hawksmoor
+Hawthorn Suites
+HAY
+Health Mart
+HealthSource America's Chiropractor
+Heartland B-cycle
+Heartland Bank
+HearUSA
+Heine Brothers'
+Hele
+Helly Hansen
+Helzberg Diamonds
+Herc Rentals
+Heritage Bank
+Herman Miller
+Hertz
+Hertz Car Sales
+Hesburger
+Hess
+Heytea
+Hibbett Sports
+Hickory Farms
+Hicksgas
+High's
+Hilti
+Hilton
+Hilton Garden Inn
+Hilton Grand Vacations
+Hino Motors
+HNT
+Hobby Lobby
+HobbyTown
+Hoka
+Hokkaido Ramen Santouka
+Holey Moley
+Holiday
+Holiday Hair
+Holiday Inn
+Holiday Inn Club Vacations
+Holiday Inn Express
+Holiday Inn Express & Suites
+Holiday Oil
+Hollister
+Holt CAT
+Home City Ice
+Home Federal Bank of Tennessee
+Home of Economy
+Home Outlet
+Home Run Inn
+Home Run Inn Pizzeria
+Home2 Suites
+Homebase
+HomeGoods
+HomeSense
+HomeStreet Bank
+Hometown America
+HomeTowne Studios
+Homewood Suites
+Honda
+Honey Baked Ham
+Honey Dew
+Honey Dew Donuts
+Hooters
+Hopdoddy Burger Bar
+Horizon Credit Union
+Hoss's Steak & Sea House
+Hostelling International
+Hot Dog on a Stick
+Hot Head Burritos
+Hot Topic
+Hotel Indigo
+Hotshots Sports Bar and Grill
+Hotworx
+Houlihan's
+House of Blues
+House of Hair
+House of Hoops
+Howard Hanna
+Howard Johnson
+HSBC
+HTeaO
+Huawei
+Hublot
+Huck's Food & Fuel
+Huddle House
+Hudson
+Hudson Booksellers
+Hudson News
+Hugo Boss
+HuHot
+Hui Lau Shan
+Humana
+Hungry Howie's
+Hunt Brothers Pizza
+Hunter Douglas
+Hunter Douglas Gallery
+Huntington Bank
+Huntington Learning Center
+Hurley
+Hush Puppies
+Husqvarna
+Hustler Hollywood
+Hwy55
+Hy-Vee
+Hy-Vee Gas
+Hy-Vee Pharmacy
+Hyatt
+Hyatt Centric
+Hyatt House
+Hyatt Place
+Hyatt Regency
+Hyatt Vacation Club
+Hyundai
+IBC Bank
+Iberostar Hotels & Resorts
+Ibis
+Ibis Budget
+Ibis Styles
+iBlues
+ICBC
+Icing
+Ideal Food Basket
+iFLY
+IGA
+IHOP
+iJooz
+Ike's Love and Sandwiches
+IKEA
+IKEA Bistro
+IKEA Restaurant
+Il Fornaio
+iLoveKickboxing
+Image Studios
+Imagine Schools
+IMO Car Wash
+Imo's Pizza
+Impact Hub
+In-N-Out Burger
+Indego
+Independent Electric
+Independent Order of Odd Fellows
+Indian Motorcycle
+Indiana Pacers Bikeshare
+Indigo
+Indochino
+Indra
+Infiniti
+ING
+Ingles
+Ingles Gas Express
+Inglot
+InMotion
+Insomnia Cookies
+InStyle
+Insurance Navy Brokers
+InterBank
+InterContinental
+International
+Intersport
+Interstate Batteries
+Intesa Sanpaolo
+Intimissimi
+Intimissimi Uomo
+Intrend
+InXpress
+IONNA
+IPIC Theaters
+Ippudo
+IQ Laser Vision
+IQOS
+Irby
+Iron Mountain
+Iron Skillet
+Irving
+Islands
+iStorage
+Isuzu
+It's Boba Time
+It's Fashion
+It's Fashion Metro
+IT'SUGAR
+itStyle
+itsu
+IWC
+IZOD
+Izzo's Illegal Burrito
+J&H Family Stores
+J. Alexander's
+J. McLaughlin
+J.Crew
+J.Jill
+J.M. Weston
+Jacadi
+Jack & Jones
+Jack Astor's
+Jack Brown Cleaners
+Jack in the Box
+Jack Stack Barbecue
+Jack Wills
+Jack's
+Jackson Hewitt
+Jacksons
+Jaeger-LeCoultre
+Jaguar
+Jamba
+James Avery Jewelry
+Janie & Jack
+Jared
+Jason's Deli
+Jazen Tea
+Jazzercise
+JBL
+JCPenney
+JCPenney Optical
+JD Sports
+JdV by Hyatt
+Jeep
+Jeni's Splendid Ice Creams
+Jenny Craig
+Jeremiah's Italian Ice
+Jerome's Furniture
+Jersey Mike's Subs
+JET
+Jet's Pizza
+Jewel-Osco
+Jiffy Lube
+Jiffy Mart
+Jigsaw
+Jil Sander
+Jim 'N Nick's
+Jimboy's Tacos
+Jimmy Choo
+Jimmy John's
+JINYA Ramen Bar
+JLL
+Jo Malone
+JO&JOE
+JOANN Fabrics and Crafts
+Jockey
+Joe & The Juice
+Joe's Crab Shack
+Joe's Kwik Marts
+Joe's Pizza
+Joey
+John Deere
+John Fluevog Shoes
+John L. Scott
+JOHN REED Fitness
+John's Incredible Pizza
+Johnny Carino's
+Johnny Rockets
+Johnny Was
+Johnson Fitness & Wellness
+Johnston & Murphy
+Johnstone Supply
+Jollibee
+JoS. A. Bank
+Jotun
+Journeys
+Journeys Kidz
+Joyalukkas
+Juan Pollo
+Juice It Up!
+Juice Press
+JuiceLand
+Julius Meinl
+Junbi
+Jurlique
+Just Over the Top
+Just Salad
+Just Sports
+Justice
+JW Marriott
+JYSK
+K1 Speed
+Kaady Car Wash
+Kahoots
+Kalyan Jewellers
+Kamp K9
+Kangaroo Express
+Kanso
+Karl Lagerfeld
+Karma
+Karma Automotive
+Kartell
+Kate Spade New York
+Kawasaki
+Kay Jewelers
+KBTR
+Kearney
+Keke's Breakfast Cafe
+Keller Williams Realty
+Kelly Services
+Kelly's Cajun Grill
+Kelly-Moore Paints
+Kempinski
+Kendra Scott
+Kent Kwik
+Kenzo
+Keva Juice
+Key Food
+KeyBank
+KeyMe
+KeyWest Inn
+KFC
+Kia
+Kiabi
+Kidango
+Kids 'R' Kids
+Kids Empire
+Kids First Swim School
+Kids First Swim Schools
+Kids Foot Locker
+KidStrong
+Kiehl's
+Kiewit
+KIKO Milano
+Kilwins
+Kim's Convenience Store
+Kimley-Horn
+Kimley-Horn and Associates
+Kimpton
+KinderCare
+Kineya Mugimaru
+King Kullen
+King Soopers
+King Soopers Marketplace
+King Taco
+Kings
+Kinney Drugs
+Kinokuniya
+Kipling
+KIPP
+Kirkland's
+Kitanda
+Kitchen Collection
+Kizuki Ramen & Izakaya
+Kmart
+Knight Frank
+Knights Inn
+Knights of Columbus
+Knights of Columbus Council
+KOA
+KOA Holiday
+KOA Journey
+KOA Kampground
+KOA Resort
+Kodak Express
+Koenigsegg
+Kohl's
+Kohler
+KOI Auto Parts
+Kona Grill
+Kool Smiles
+Koton
+KPMG
+Kreation Organic
+Krispy Kreme
+Krispy Krunchy Chicken
+Krist
+Kroger
+Kroger Marketplace
+Kroger Pharmacy
+Krystal
+KTA Super Stores
+KTM
+Kum & Go
+Kumon
+Kung Fu Tea
+Kuoni
+Kura Sushi
+Kurt Geiger
+Kusmi Tea
+Kwik Fill
+Kwik Shop
+Kwik Star
+Kwik Trip
+L&L Drive-Inn
+L&L Hawaiian Barbecue
+L'Antica Pizzeria da Michele
+L'Occitane
+L.L.Bean
+La Colombe Coffee Roasters
+La Curacao
+LA Fitness
+La Martina
+La Michoacana
+La Michoacana Meat Market
+La Petite Academy
+La Place
+La Quinta Inn
+La Quinta Inn & Suites
+La Salsa
+La Vie en Rose
+La-Z-Boy
+LabCorp
+Lacoste
+Lada
+Lady Foot Locker
+Lake Michigan Credit Union
+Lamborghini
+Lamps Plus
+Lancia
+Land Rover
+Landmark Credit Union
+Landmark Theatres
+Lane Bryant
+Langham Hotels & Resorts
+Laredo Taco Company
+LaRosa's Pizzeria
+Larry's Giant Subs
+LaserAway
+LasikPlus
+Laughing Planet
+Lavazza
+Lawson
+Layne's Chicken Fingers
+Lazy Dog
+LC Waikiki
+LCNB
+Le Coq Sportif
+Le Creuset
+Le Five
+Le Pain Quotidien
+Ledo Pizza
+Lee Cooper
+Lee's Famous Recipe Chicken
+Lee's Sandwiches
+Leeann Chin
+Legal Sea Foods
+Lego
+LEGO Discovery Center
+LEGOLAND
+LEGOLAND Discovery Center
+Leica
+Lendmark Financial Services
+LensCrafters
+Leonidas
+Leroy Merlin
+Les Schwab Tire Center
+Leslie's Pool Supplies
+Levi's
+Lexus
+Liberty
+Liberty Bank
+Liberty Mutual Insurance
+Liberty Tax
+Liberty Travel
+LibertyX
+Libraries in Clackamas County
+Libraries of Eastern Oregon
+Lidl
+Lids
+Life Care Centers of America
+Life Time
+Life Time Work
+Lighthouse Credit Union
+Ligne Roset
+Lilly Pulitzer
+Lime
+Lincoln
+Linde
+Linde Welding Gas & Equipment Center
+Lindt
+LINE-X
+Lion's Choice
+Lions Clubs International
+Little Big Burger
+Little Caesars
+Little Free Library
+Little Free Pantry
+Little Kitchen Academy
+Liu Jo
+Live!
+LJ Hooker
+LKQ
+Llaollao
+Loaf 'N Jug
+loanDepot
+Localiza
+Loding
+Loft
+Logan's Roadhouse
+Lolli and Pops
+Lollicup
+Long & Foster
+Long & Foster Real Estate
+Long John Silver's
+Longchamp
+LongHorn Steakhouse
+Longines
+Longs Drugs
+Loop
+Loro Piana
+Lotte Hotel
+Lotte Hotels & Resorts
+Lotteria
+Lotus
+Lou Malnati's Pizzeria
+Louis Vuitton
+Louisiana CAT
+Louisiana Famous Fried Chicken
+Love's
+Love's Alternative Energy
+Love's RV Hookup
+Love's Travel Stop
+Love's Truck Care
+LoveSac
+Loving Hut
+Lovisa
+Lowe's
+Lowe's Market
+Lowes Foods
+Loyal Order of Moose
+Luby's
+Lucid
+Lucid Motors
+Lucille's Smokehouse BBQ
+Luckia
+Luckin Coffee
+Lucky
+Lucky Brand
+Luisa Spagnoli
+Lukoil
+Lululemon
+Lumas
+Lumber Liquidators
+Lupe Tortilla
+Lush
+Lviv Croissants
+LXR
+Lyft
+Lyft Bike
+Lynk & Co
+M&T Bank
+MAA
+MAACO
+MAC Cosmetics
+MacAllister CAT
+Machi machi
+machi machi
+Mackage
+MACS Macaroni and Cheese Shop
+Macu
+Macu Tea
+Macy's
+Macy's Backstage
+Mad Science
+Madame Coco
+Madewell
+Madison Reed
+Maggiano's Little Italy
+Mahindra & Mahindra
+Maid-Rite
+Maidenform
+Main Event
+MainStay Suites
+Maison Margiela
+Maje
+Makro
+Malabar Gold and Diamonds
+Malin+Goetz
+Mama Shelter
+MAN
+Manchu Wok
+Mandarin Oriental Hotel
+Mandee
+Mango
+Mango Mango Dessert
+Manhattan Bagel
+Manpower
+Mapco
+Mapfre
+Maple Bear
+Maple Street Biscuit Company
+Marathon
+Marathon Sports
+Marble Slab Creamery
+Marc Cain
+Marc Jacobs
+Marc O'Polo
+Marc's
+Marc's Pharmacy
+Marco's Pizza
+Marcus Cinema
+Marden's
+Marella
+Margaritas
+Mariano's Fresh Market
+Marie Callender's
+Marina Rinaldi
+Marine Credit Union
+Marine Layer
+MarineMax
+Mariner Finance
+Mark's Pizzeria
+Market Basket
+Market of Choice
+Market Street
+Marriott
+Marriott Vacation Club
+Marrybrown
+Marshalls
+Martin Auto Color
+Martin's BBQ
+Martin's Super Markets
+Martinizing Dry Cleaning
+Marugame Seimen
+Marugame Udon
+Maryland Fried Chicken
+Maserati
+Massage Envy
+Massage Heights
+Massimo Dutti
+Mastercuts
+Matcha Cafe Maiko
+Mathnasium
+Matto Espresso
+Mattress Depot USA
+Mattress Firm
+Mattress Warehouse
+Mattress World Northwest
+Maurices
+Maverik
+Mavi
+Mavis Discount Tire
+Mavis Tires & Brakes
+Max
+Max Brenner
+Max Mara
+MAX&Co.
+Maxim Crane Works
+Maybank
+Mayoral
+Mazda
+Mazzio's
+McAlister's Deli
+McArthurGlen
+McArthurGlen Designer Outlet
+McCormick & Schmick's
+McCoy's
+McDonald's
+McDonald's PlayPlace
+McKinsey & Company
+McLaren
+MCM
+McMenamins
+MD Now Urgent Care
+Me Spa
+Medicap Pharmacy
+Meet Fresh
+Meijer
+Meijer Express
+Meijer Pharmacy
+Meineke
+Meininger
+Meizhou Dongpo
+Mellow Mushroom
+Men's Wearhouse
+Menards
+Menchie's
+Mendocino Farms
+Mephisto
+Mercantil
+Mercedes-Benz
+Mercedes-Benz Trucks
+Merchant's
+Mercure
+Merit Dental
+Merle Norman
+Merle Norman Cosmetics
+Merrell
+Merrill
+Merrill Lynch Wealth Management
+Merry Maids
+Merryhill Preschool
+Merryhill School
+Meson Sandwiches
+Messer
+Messika
+Meta
+Metairie Bank
+METRO
+Metro by T-Mobile
+Metro Diner
+Metro Mattress
+Metro Self Storage
+Mexx
+Mezeh
+Mezeh Mediterranean Grill
+MGallery
+Miami Grill
+Michael Hill
+Michael Kors
+Michaels
+Michigan CAT
+Michigan Self-Service Station
+Micro Center
+Microtel
+Microtel Inn & Suites
+Midas
+MidFirst Bank
+Midwest Dental
+Midwest Title Loans
+Miele
+Mighty Quinn's
+Mighty Taco
+Mikel
+Mikimoto
+Milan Laser Hair Removal
+Milio's
+Millennium
+Miller Paint
+Miller's Ale House
+Milo's Hamburgers
+Mimi's Cafe
+Mini
+Mini Mall Storage
+Mini Melts
+Mini Storage Depot
+Mini U Storage
+Mini-Mart
+Miniso
+Minit Mart
+Minute Key
+MinuteClinic
+Minuteman Press
+Miracle-Ear
+Mission BBQ
+Mission Federal Credit Union
+Missouri Farm Bureau Insurance
+Mister Car Wash
+Mister Donut
+Mister Minit
+Mitsubishi
+Mitsuwa Marketplace
+Mixue
+Mixue Ice Cream & Tea
+Mo's
+Mo-Mo Paradise
+Mobil
+Mobil 1
+Mobil 1 Lube Express
+Mobil Mart
+Mobile Mini
+Mochinut
+MOD Pizza
+Modell's Sporting Goods
+Modera
+Modern Market
+ModWash
+Moe's Italian Sandwiches
+Moe's Southwest Grill
+MoGo
+Molly Maid
+Momoni
+Monarch Dental
+Moncler
+Mondovi Dental
+Money Mart
+MoneyGram
+MoneyPass
+Moneytree
+Monical's Pizza
+Monki
+Monro Muffler Brake
+Montblanc
+Moose Lodge
+Mooyah
+Mor
+Mor Furniture
+Morgan & Morgan
+Morgan Jewelers
+Morgan Stanley
+Morgan, Lewis & Bockius
+Morphe
+Morton Williams
+Morton's Grille
+Morton's The Steakhouse
+Motel 6
+Motel One
+Mothercare
+Motherhood Maternity
+Motion Industries
+motivi
+MOTO Pizza
+Motrio
+Motto
+Mountain America Credit Union
+Mountain Mike's
+Mountain Warehouse
+Movado
+Movie Tavern
+Moxie's
+Moxy
+Mr. Electric
+Mr. Handyman
+Mr. Hero
+Mr. Pretzels
+Mr. Rooter
+Mr. Sub
+Mr. Tire
+Mrs. Fields
+Muchas Gracias Mexican Food
+Mucho Burrito
+Mud Bay
+Muji
+Mulberry
+Munch's Supply
+Murphy Express
+Murphy USA
+Music & Arts
+Mustang
+Mustang CAT
+Musterring
+Muthoot Finance
+Mutt Mitt
+Mutual of Omaha
+My Dentist
+My EyeLab
+My Gym
+My Place Hotel
+My Place Hotels
+My Salon Suite
+MyEyeDr.
+Myungrang Hotdog
+N C Machinery
+Na Hoku
+Naf Naf Grill
+Nana's Green Tea
+Nando's
+Naot
+NAPA Auto Parts
+NAPA AutoCare Center
+Napapijri
+NASA Federal Credit Union
+Nathan's
+Nation's Giant Hamburgers
+National
+National Bank of Kuwait
+National Seating & Mobility
+Nationwide
+Native Grill & Wings
+Natur House
+Natural Grocers
+Naturalizer
+Nature Republic
+Natuzzi
+Natuzzi Italia
+Nautica
+Navy Exchange
+Navy Federal Credit Union
+NBT Bank
+Neat
+Nectar
+Nedbank
+Neiman Marcus
+Nero Express
+Nespresso
+Neste
+Neuhaus
+Nevada DMV Now
+New Balance
+New Hampshire Liquor & Wine Outlet
+New Hampshire Liquor & Wine Outlets
+New Horizon Academy
+New Mexico MVD Direct
+New Seasons Market
+New York & Company
+New York Life
+New York State DMV Now
+New Yorker
+Next
+Next Level Burger
+NH Collection Hotels
+NH Lottery
+Nice To Meet You Hot Pot
+Nick The Greek
+Nicolet National Bank
+Nike
+Nike Clearance Store
+Nike Community Store
+Nike Factory Store
+Ninety Nine Restaurant & Pub
+NIO
+NIO House
+NIO Space
+Nissan
+Nitori
+NMC CAT
+Noah's Bagels
+Nobu
+Noodles & Company
+Norbys Farm Fleet
+Nordea
+Nordstrom
+Nordstrom Rack
+North Coast
+North Dakota MV Express
+North Italia
+North Sails
+NorthEast Electrical
+Northern Tool + Equipment
+Northgate Market
+Northwest Bank
+Northwest Self Storage
+Northwestern Medicine
+Northwestern Mutual
+Nothing Bundt Cakes
+Nouria
+NovaCHARGE
+Novotel
+NOVUS Glass
+Novus Home Mortgage
+NTB
+Nuance
+Nudie Jeans
+Num Pang
+NUTTEA
+NVISION
+NVISION Eye Centers
+Nyx
+O'Charley's
+O'Neill
+O'Reilly Auto Parts
+Oakley
+Oakley Vault
+OBCZ
+Oberweis
+OCCU
+Ocean State Job Lot
+Odd Fellows Hall
+Off-White
+Office Depot
+OfficeMax
+Ohio BMV Express
+Ohio CAT
+Oil & Vinegar
+Oil Changers
+Ojos Locos Sports Cantina
+Old Chang Kee
+Old Chicago
+Old Country Buffet
+Old National Bank
+Old Navy
+Old Second National Bank
+Old Time Pottery
+OldTown White Coffee
+Ole & Steen
+Olive Garden
+Oliver Peoples
+Ollie's Bargain Outlet
+Omaha Steaks
+Omega
+On The Border
+On the Run
+Once Upon a Child
+ONE9
+ONE9 Travel Center
+OneMain Financial
+OneSource
+Onet
+OneZo Tapioca
+ONLY
+Ono Hawaiian BBQ
+OnPoint
+Onvo
+Onvo Travel Plaza
+opconnect
+Opel
+Oppo
+Opticalia
+Optimum
+Ora
+Orange Julius
+Orange Leaf Frozen Yogurt
+Orangetheory Fitness
+Orchestra
+Oreck
+Oregon State Credit Union
+Oriental
+Oriflame
+Origin Bank
+Original Mattress Factory
+Original Roadhouse Grill
+Original Tommy's
+Origins
+Orioles Nest
+Orkin
+orsay
+Orscheln Farm & Home
+Oscar's Frozen Custard
+OshKosh B'gosh
+Osmow's
+Otto Pizza
+Outback Steakhouse
+Outdoor Supply Hardware
+Outrigger Hotels and Resorts
+Oxxo
+OYO
+Oysho
+P. C. Richard & Son
+P. Terry's
+P.F. Chang's
+Pace
+Pacific Pride
+PacSun
+Pagliacci Pizza
+Pak Mail
+Pal's
+Palace Inn
+Palm Beach Tan
+Pan Pacific
+Pan-Asia
+Pancheros
+Pancheros Mexican Grill
+Panda Express
+Pandora
+Panera Bread
+Panerai
+Papa Gino's
+Papa John's
+Papa Murphy's
+Paper Source
+PappaRich
+Par Mar Stores
+Parcel Pending
+Parfois
+Paris Baguette
+Park Hyatt
+Park Inn
+Park Plaza
+Park Plaza Hotels
+Parkeon
+Parking Kitty
+PARKROYAL
+Parr Lumber
+Party City
+Pastini
+Patagonia
+Patek Philippe
+Patel Brothers
+Pathward
+Patroni
+Paul
+Paul Mitchell
+Paul Mitchell The School
+Paul Smith
+Pavilions
+Payless
+Payless ShoeSource
+Payomatic
+PBteen
+PCC Community Market
+PCC Community Markets
+PDQ
+PeaceHealth Rides
+Peachwave
+Pearle Vision
+Peet's Coffee
+Pei Wei
+Pelicana
+Pelicana Chicken
+Pella Windows and Doors
+Peloton
+Pendleton
+PenFed Credit Union
+Penn Station
+Pennyblack
+Penske Truck Rental
+Penti
+Penzeys Spices
+PeopleReady
+Peoples Bank
+Pep Boys
+Pepe Jeans
+Pepper Lunch
+Pepperoni's
+Pepsi
+Perfect Brows NYC
+Perfect Look Hair Salon
+Perfect Look Salons
+Perfumania
+Perkins
+Perry Ellis
+Persona
+Pet Food Express
+Pet Planet
+Pet Supermarket
+Pet Supplies Plus
+Pet Valu
+Petco
+Pete's Market
+Peter Millar
+Peter Piper Pizza
+Peterbilt
+Peterson CAT
+Petit Casino
+Petland
+PetPeople
+Petro
+Petro Stopping Centers
+Petrol Ofisi
+Petrolimex
+Petronas
+PetsHotel
+PetSmart
+PetSuites
+Peugeot
+PGA Tour Superstore
+Phantom Fireworks
+PharmaBox
+Pharmaca
+Phillips 66
+Philly Pretzel Factory
+Philz Coffee
+Piada Italian Street Food
+Piaget
+Piccadilly
+Pick 'n Save
+Pick Up Stix
+Pick Your Part
+Picture
+Pie Five
+Pie Five Pizza Co
+Pieology Pizzeria
+Pierre Cardin
+Piggly Wiggly
+PikeRide
+Pilot
+Pilot Travel Center
+Pinch A Penny
+Pink
+Pinkberry
+Pinko
+Pinnacle Bank
+Pita Pit
+Pizza Boli's
+Pizza Factory
+Pizza Hut
+Pizza Hut Delivery
+Pizza Hut Express
+Pizza Inn
+Pizza My Heart
+Pizza Nova
+Pizza Ranch
+Pizza Schmizza
+PJ's Coffee of New Orleans
+Plaid Pantry
+Planet Aid
+Planet Fitness
+Planet Smoothie
+Plato's Closet
+Platte Valley Bank
+Play It Again Sports
+Playa Bowls
+PLS
+PLS Financial Services
+PNC Bank
+Pods
+Poggenpohl
+POGOH
+Point S
+Poke Bros.
+Poke House
+Polaris
+Polestar
+Pollo Campero
+Pollo Tropical
+Polo Ralph Lauren
+Poltrona Frau
+Pom d'Api
+Ponderosa Steakhouse
+Pop Mart
+Popeyes
+Poppy Bank
+pOpshelf
+Popular
+Porcelanosa
+Porsche
+Porsche Design
+Port of Subs
+Portillo's
+Portland Glass
+PostNet
+Potato Corner
+Potbelly
+Pottery Barn
+Pottery Barn Kids
+Powerhouse Gym
+PPG Paints
+Prada
+Precision Tune Auto Care
+Premier Bank
+Premier Martial Arts
+Pressed
+Pressed Juicery
+Pret A Manger
+Pretzelmaker
+Price Chopper
+Price Rite
+Primanti Bros.
+Primark
+Prime Storage
+Primerica
+Primo Water
+PrimoHoagies
+Primrose School
+Princesse tam.tam
+Pro Image Sports
+Proactiv
+ProColor Collision
+Produce Junction
+Progressive
+Promod
+Prosperity Bank
+Provident Bank
+Prudential Financial
+PruittHealth
+PSECU
+Psycho Bunny
+PTT Station
+Public Storage
+Publix
+Puckett CAT
+Pueblo
+Pull & Bear
+Pullman
+Puma
+Puma Outlet
+Punt Roma
+PUPA Milano
+Pure Barre
+Purple
+PwC
+QB HOUSE
+Qdoba
+QED
+QFC
+Qik-n-EZ
+Quaker Steak & Lube
+Quality Inn
+Quality Inn & Suites
+Quality Mart
+Quality RV Resorts
+Quest Diagnostics
+Quick Quack Car Wash
+Quick Tag
+QuickChek
+Quickly
+Quik Stop
+Quiksilver
+QuikTrip
+Quinn CAT
+Quiznos
+R.M.Williams
+RA Sushi
+Rabobank
+RaceTrac
+RaceWay
+Rack Room Shoes
+Rad Power Bikes
+RadioShack
+Radisson
+Radisson Blu
+Radisson Collection
+Radisson RED
+Rado
+Raffles
+Rainbow
+Rainforest Cafe
+Raising Cane's
+Raley's
+Rally House
+Rally's
+Ralph's Italian Ices
+Ralphs
+Ram
+Ramada
+Ramen Danbo
+Randstad
+Range Rover
+Rapha
+Rasmussen University
+Ray's Food Place
+Ray-Ban
+Raymond James
+Raymour & Flanigan
+RCB Bank
+RE/MAX
+Reading Cinemas
+Realty Executives
+Rebel
+Red Apple Food Mart
+Red Bike
+Red E
+Red Lion Hotels
+Red Lion Inn & Suites
+Red Lobster
+Red Mango
+Red Ribbon
+Red Robin
+Red Roof Inn
+Red Wing
+Redbox
+Reddy Ice
+RediClinic
+Redner's
+Reebok
+Refood
+Refuel
+Regal Cinemas
+Regal Nails
+Regatta Great Outdoors
+Regional Finance
+Regions Bank
+Regis
+Regus
+REI
+Relay
+Relay Bike Share
+Removery
+Renaissance
+Renault
+Renault Trucks
+Rent-A-Center
+Repsol
+Republic Bank
+Reserved
+Residence Inn
+Restoration Hardware
+Restore Hyper Wellness
+Retro Fitness
+Rexel
+Rhodes
+Ria
+RibCrib
+Richard Mille
+Rieker
+RightSpace Storage
+Rimac
+Rimowa
+Rip Curl
+RISE
+Rita's Italian Ice
+Rite Aid
+Rituals
+RIU
+Riu Paris
+Rivian
+Rivian Adventure Network
+Rivian Service Center
+Rivian Waypoints
+Road Ranger
+Road Runner Sports
+Roady's
+Roady's Truck Stops
+Robeks
+Robert Graham
+Roberto Cavalli
+Roberto's Taco Shop
+Roche Bobois
+Rochester Regional Health Laboratories
+Rochester Regional Health Urgent Care
+Rock N Roll Sushi
+Rocket
+Rocket Fizz
+RockItCoin
+Rockland Trust
+Rockport
+Rocky Mountain Chocolate Factory
+Rocky Rococo
+Rodd & Gunn
+Rodda Paint
+Rodeway Inn
+Roger Dubuis
+Rogue Credit Union
+Rolex
+Rolls-Royce
+Romano's Macaroni Grill
+Romantik Hotel
+Romantik Hotels & Restaurants
+Romantik Restaurant
+Ronald McDonald House
+Room Mate
+Rooms To Go
+Rooms To Go Kids
+Roots
+Rosati's
+Rosauers
+Rose Bakeshop
+Roses
+Rosewood
+Ross
+Rotten Robbie
+Round Table Pizza
+Round1
+Rouses
+Roy Rogers
+Royal Business Bank
+Royal Farms
+Royaltea
+RP Lumber
+RTC Bike Share
+Rubio's
+Rubis
+Ruby Tuesday
+Ruby's Diner
+Rudy's Barbershop
+Rudy's Country Store and Bar-B-Q
+rue21
+Ruler Foods
+Rumble
+Running Room
+Runnings
+Runza
+Rural King
+Rush Bowls
+Rush Truck Centers
+Russian School of Mathematics
+Ruth's Chris Steak House
+Rutter's
+RVA Bike Share
+Ryder
+S&T Bank
+Sabon
+SAE Institute
+Safari Kid
+Safelite AutoGlass
+SafeSplash Swim School
+Safeway
+Safeway Fuel Station
+SageView Advisory Group
+Saint Algue
+Saint Laurent
+Saint Vincent de Paul
+Saint Vincent de Paul Thrift Store
+Saizeriya
+Saje
+Saks Fifth Avenue
+Saks Off 5th
+Sal's Pizza
+Salad and Go
+Saladworks
+Salamander
+Salem Five Bank
+Salesforce
+Sally Beauty
+Salomon
+SalonCentric
+Salsarita's Fresh Mexican Grill
+Salt & Straw
+Saltgrass Steak House
+Salvatore Ferragamo
+Salvatore's Old Fashioned Pizzeria
+Sam's Club
+Samsonite
+Samsung
+San Diego Blood Bank
+San Diego County Credit Union
+Sanel NAPA
+Sankalp
+Santander
+Sapp Bros.
+Sapp Brothers Travel Center
+Saravanaa Bhavan
+Sarku Japan
+Sarpino's Pizzeria
+SAS
+Sassoon Salon
+Save Mart
+Save-A-Lot
+Savers
+Savills
+Sbarro
+Sberbank
+Scania
+Scheels
+Schlotzsky's
+Schmizza Pub & Grub
+Schmizza Public House
+Schnucks
+School of Rock
+Scooter's Coffee
+Scotch & Soda
+Scotiabank
+Scrubs & Beyond
+Seafood City
+Seagull Book
+Sears
+Sears Auto Center
+Sears Hometown
+Seasons 52
+Seasons Corner Market
+Seat
+Seattle's Best Coffee
+Sebago
+Second Cup
+Second Home
+SecurCare Self Storage
+SecureSpace Self Storage
+Securitas
+Security First Bank
+Security Public Storage
+Security Service Federal Credit Union
+See's Candies
+Segafredo
+Seiko
+Self-Help Credit Union
+Self-Help Federal Credit Union
+Sentara
+Sephora
+Service Credit Union
+Service King
+ServiceMaster
+Servpro
+Seva Beauty
+SF Supermarket
+Sfera
+Shah's Halal Food
+Shake Shack
+Shake's
+Shakey's
+Shamrock
+Shane Co.
+Sharetea
+Shari's
+Shaw's
+Sheetz
+Shell
+Shell Express
+Shell Recharge
+Shell Select
+Shell Shop
+Shelter Insurance
+Sheraton
+Sherwin-Williams
+Shi Miao Dao Yunnan Rice Noodle
+Shiekh
+Shilo Inns
+Shinhan Bank
+Shipley Do-Nuts
+Shiseido
+Shoe Carnival
+Shoe City
+Shoe Dept.
+Shoe Dept. Encore
+Shoe Palace
+Shoe Sensation
+Shoe Show
+Shoe Show Mega
+Shoney's
+Shoo Loong Kan
+Shop 'n Save
+Shopko
+Shopko Optical
+Shoppers
+Shoppers Food & Pharmacy
+ShopRite
+Shore United Bank
+Showcase
+Showcase Cinemas
+Showmars
+Shred Nations
+SieMatic
+Siemens
+Sierra
+Signarama
+Signia
+Silver Diner
+Simmons Bank
+Simple Simon's Pizza
+Simply Mac
+Simply Southern
+Sinclair
+Sinsay
+Sir Speedy
+Site for Sore Eyes
+Six Flags
+Six Senses
+Sixt
+Sizzle Pie
+Sizzler
+Skechers
+SKIMS
+Skin Laundry
+Sky Zone
+Skyline Chili
+Slapfish
+Sleep Experts
+Sleep Inn
+Sleep Inn & Suites
+Sleep Number
+Sleep Outfitters
+Sligro
+Slim Chickens
+Smallcakes
+Smart & Final
+Smart & Final Extra!
+Smarte Carte
+SmartStyle
+Smashburger
+SmileKeepers
+Smith's
+Smithfield's Chicken 'N Bar-B-Q
+Smokey Bones
+Smoothie King
+Snap Fitness
+Snappy Tomato Pizza
+Snarf's Sandwiches
+Sneaky Pete's
+Snipes
+Snooze
+Soapy Noble
+Sofitel
+Soft Surroundings
+Sola Salons
+Solidcore
+Solstice Sunglasses
+Soma
+SomiSomi
+Sonder
+Sonesta
+Sonesta ES Suites
+Sonesta Select
+Sonesta Simply Suites
+Sonic
+Sonny's BBQ
+Sony
+Sony Centre
+SoulCycle
+Sourdough & Co.
+South Dakota DMV Now
+Southern Bank
+Southern Self Storage
+Southern States
+Southside Bank
+SouthState Bank
+Space Age
+Space Coast Credit Union
+Space Shop Self Storage
+Spaces
+Spangles
+Spanx
+Spar
+Spar Express
+Spark by Hilton
+Spec's
+Specialized
+Specsavers
+Spectrum
+Speed Queen
+Speedco
+SpeeDee
+SpeedPro
+Speedway
+Speedy Glass
+Speedy Wash
+Spencer Gifts
+Spencer's
+Sperry
+Spherion
+Spherion Staffing & Recruiting
+Spinx
+Spirit Halloween
+Spizzico
+Sport Clips
+Sportmax
+Sports Authority
+Sports Direct
+Sportsman's Warehouse
+Springfield
+SpringHill Suites
+Sprint
+Sprouts Farmers Market
+SsangYong
+St. John
+St. John Outlet
+St. Regis
+STA Travel
+Stan's Donuts & Coffee
+Standard Bank
+Standard Chartered
+Stanley Steemer
+Stanton Optical
+Staples
+Star Mart
+Star Rentals
+Starbucks
+Starbucks Reserve
+Starting Strength
+Starting Strength Gyms
+State & Liberty
+State Bank of India
+State Bank of India (California)
+State Farm
+Stater Bros.
+Station Service E.Leclerc
+Staybridge Suites
+Steak 'n Shake
+Steak Escape
+Stein Mart
+Stella McCartney
+Steve Madden
+Stewart's
+Stewart's Shops
+Stihl
+Stinker
+STK
+Stoney River
+Stop & Shop
+Stop Cafe
+Storage Rentals of America
+Storage Sense
+StorageMart
+StorAmerica
+Store Space
+StorQuest
+StorQuest Self Storage
+Strack & Van Til
+Stradivarius
+Strayer University
+Stretch Zone
+Strickland Brothers
+Stride Rite
+Stripes
+Stuart Weitzman
+Stuckey's
+Studio 6
+Stumptown Coffee Roasters
+Sua Xe
+Sub Zero
+Subaru
+Subdued
+Suburban Propane
+Suburban Studios
+Subway
+Success Academy
+Suitsupply
+Suki Hana
+Sullivan Tire
+Summit Credit Union
+Sun Auto Service
+Sun Loan
+Sun Tan City
+Sunbelt Rentals
+Suncoast Credit Union
+Sundance
+Sundance Catalog
+Sunglass Hut
+Sunnyside
+Sunoco
+Sunright Tea Studio
+Sunset Grill
+Sunstate Equipment
+Super 1 Foods
+Super 8
+Super C
+Super Chix
+Super H Mart
+Super One Foods
+Super Star Car Wash
+Super Supplements
+Super Wash
+Supercuts
+Superdry
+Superior Grocers
+Sur La Table
+SureStay
+SureStay Collection
+SureStay Plus
+SureStay Studio
+Sutter Health
+Sutter Surgery Center
+Sutter Walk-In Care
+Suzuki
+SVS Vision
+Swarovski
+Swatch
+Sweaty Betty
+sweetFrog
+Sweetgreen
+Sweethoney Dessert
+SWell Cycle
+Swensen's
+Swig
+SwimLabs Swim School
+Swiss-Belhotel
+Swiss-Belinn
+SWTCH
+Sylvan
+Synlab
+Synovus
+T-Mobile
+T-ZONE
+T4 Tea For U
+Taco Bell
+Taco Bell Cantina
+Taco Bueno
+Taco Cabana
+Taco Casa
+Taco Del Mar
+Taco John's
+Taco Mayo
+Taco Palenque
+Taco Time
+Tacombi
+Tacotote
+TAG Heuer
+Taj
+Take 5
+Take 5 Car Wash
+Take 5 Oil Change
+Talbots
+Tally Weijl
+Tan Republic
+Tanger Outlets
+Tapestry Collection
+Tapioca Express
+Tar Heel Bikes
+Target
+Target Optical
+Tartine et Chocolat
+Tastea
+Tatte Bakery & Cafe
+Taylor Corporation
+Taziki's Mediterranean Cafe
+TCBY
+TD Ameritrade
+TD Bank
+TeamLogic IT
+Teapresso Bar
+Ted Baker
+Ted's Hot Dogs
+Ted's Montana Grill
+Teddy's Bigger Burgers
+Tefal
+Tele2
+Telenor
+Telepizza
+Tempo
+Tempur-Pedic
+Ten Seconds Yunnan Rice Noodle
+Ten Thousand Villages
+Tender Greens
+Tennessee State Bank
+Teriyaki Madness
+Terranova
+Terrible's
+Terrible's Diesel
+Tescoma
+Tesla
+Teso Life
+Tesoro
+Tex's Chicken & Burgers
+Texaco
+Texas Farm Bureau Insurance
+Texas Roadhouse
+Tezenis
+TGI Fridays
+Thales
+The 99 Store
+The Alley
+The Athlete's Foot
+The Baked Bear
+The Bar Method
+The Barbers
+The Bean
+The Body Shop
+The Brass Tap
+The Cheesecake Factory
+The Chicken Rice Shop
+The Children's Courtyard
+The Children's Place
+The Chopped Leaf
+The Coffee Bean & Tea Leaf
+The Container Store
+The Counter
+The Edge Fitness Club
+The Exercise Coach
+The Flame Broiler
+The Fresh Market
+The Goddard School
+The Grand Lodge of Tennessee
+The Great Greek Mediterranean Grill
+The Halal Guys
+The Hartford
+The Hippo
+The Home Depot
+The Hoxton
+The Human Bean
+The Jalapeno Tree
+The Joint Chiropractic
+The Keg
+The Kickin' Crab
+The Lash Lounge
+The Lasik Vision Institute
+The Little Clinic
+The Little Gym
+The Lock Up
+The Luxury Collection
+The Medicine Shoppe
+The Melting Pot
+The National Grange of the Order of Patrons of Husbandry
+The North Face
+The Old Spaghetti Factory
+The Original Pancake House
+The Paper Store
+The Picklr
+The Ritz-Carlton
+The Salon at Ulta Beauty
+The SALON by InStyle
+The Salvation Army
+The Shade Store
+The Skin Bar at Ulta Beauty
+The Stand
+The Standard
+The Ten Spot
+The Tile Shop
+The UPS Store
+The Vitamin Shoppe
+The Walking Company
+The Webster
+The Westin
+The Yard Milkshake Bar
+Theisen's
+Therapydia
+Thermo Fisher Scientific
+Think Coffee
+Thom Browne
+Thomas Cook
+Thomas Sabo
+Thompson CAT
+Thorntons
+Thousand Trails
+Thrifty
+Thrivent
+Tidal Wave Auto Spa
+Tide Cleaners
+Tierra Mia Coffee
+Tiffany & Company
+Tiger Mart
+Tiger Sugar
+Tijuana Flats
+Tillys
+Tim Ho Wan
+Tim Hortons
+Timberland
+Times Supermarkets
+Timewise
+Tire Choice
+Tire Discounters
+Tire Kingdom
+Tire Pros
+Tire Warehouse
+Tires Plus
+Tissot
+TITLE Boxing Club
+TitleMax
+TJ Maxx
+TKK Fried Chicken
+TLC Laser Eye Centers
+TNT Fireworks
+Tod's
+Togo's
+Tom Ford
+Tom N Toms
+Tom Tailor
+Tom Thumb
+Tommy Bahama
+Tommy Hilfiger
+Tommy Hilfiger Kids
+Tommy's Express
+Tompkins Community Bank
+TomThumb
+TomTom
+Toni & Guy
+Tony Roma's
+Tony's Fresh Market
+Toot'n Totum
+Topgolf
+Topman
+Toppers Pizza
+Tops
+Tops Pharmacy
+Topshop
+Torchy's Tacos
+Torrid
+Tory Burch
+Total Wine
+Total Wireless
+Touchstone Imaging
+Touchstone Medical Imaging
+Tourneau
+Tous
+Tous les Jours
+Tower Loan
+Town Fair Tire
+Town Pump
+TownePlace Suites
+Toyota
+Toys R Us
+TP Tea
+Tractor & Equipment Co.
+Tractor Supply Company
+Tradehome Shoes
+Trademark Collection
+Trader Joe's
+Travelex
+Travelodge
+TravisMathew
+Trek
+TRIBE
+Tribute Portfolio
+Triumph
+Trojan Storage
+Tropical Smoothie Cafe
+Tru
+True Food Kitchen
+True Religion
+True Value
+True Zero
+truenorth
+TruGreen
+Truist
+Truly Nolen
+Trustco Bank
+Trustmark Bank
+TRYP
+TSR Consulting Services
+Tsunami Express
+TSUTAYA
+Tubby's
+Tudor
+Tudor's Biscuit World
+Tuesday Morning
+Tuff Shed
+Tuffy
+Tuft & Needle
+TUI
+Tumi
+Turkey Hill
+Turkish Airlines
+Tutor Time
+TWG Tea
+Twice the Ice
+Twin Liquors
+Twin Peaks
+Twistee Treat
+Twisters
+Two Hands
+Two Hands Corn Dog
+Two Men and a Truck
+Typo
+U-Haul
+U-Save
+U-Stor-It
+U.S. Bank
+U.S. Cellular
+U.S. Polo Assn.
+UBA
+uBreakiFix
+UBS
+UBS Financial Services
+UDF Fuel
+UDON
+UFC Gym
+UGG
+Ulta Beauty
+Ultramar
+UMB Bank
+Unbound Collection
+Uncle Tetsu's Cheesecake
+Under Armour
+Under Armour Youth
+Unified Bank
+Uniform Destination
+Union Bank
+Union Savings Bank
+Uniqlo
+United Bank
+United Colors of Benetton
+United Community Bank
+United Dairy Farmers
+United Federal Credit Union
+United Grocery Outlet
+United Healthcare
+United Rentals
+United Supermarkets
+United Taekwondo Center
+Unitus
+University Federal Credit Union
+University of Phoenix
+Unleashed
+Uno Pizzeria & Grill
+UNTUCKit
+UOB
+UPS
+UpWest
+UR Medicine Labs
+UR Medicine Urgent Care
+Urban Air
+Urban Outfitters
+Urban Plates
+US Market
+US Storage Centers
+USA Gasoline
+USA Pawn and Jewelry
+USAA
+USAgain
+UW Credit Union
+V.I.M.
+Vacheron Constantin
+Vagabond Inn
+Valentino
+Valentino's
+Valerio's Tropical Bakeshop
+Valero
+Vallarta
+Vallen
+Valley Bank
+ValleyBike
+Value City Furniture
+Value Village
+Valvoline
+Valvoline Express Care
+Van Cleef & Arpels
+Van der Valk
+Van der Valk Hotel
+Van Heusen
+Van Leeuwen Ice Cream
+Vanessa Bruno
+Vans
+Vape City
+Vapiano
+VASA Fitness
+Vauxhall
+VCA Animal Hospital
+VCA Animal Hospitals
+VEG
+Veggie Grill
+Vein Clinics of America
+Velvet Taco
+Vera Bradley
+VeraBank
+Verizon
+Vero Moda
+Versace
+Vertbaudet
+Vespa
+Vet Center
+Veterans of Foreign Wars of the United States
+VetIQ
+VetIQ Petcare
+VFW Post
+Vianor
+Vib
+Victoria's Secret
+Victorico's
+Video Only
+Viking Electric
+Vilebrequin
+Village Inn
+VillaSport
+Villeroy & Boch
+VINCE.
+Vineyard Vines
+Vino Volo
+Vinted Go
+VIP Tires and Service
+Virgin Hotels
+Virginia ABC
+Vision Express
+Vision Source
+Visionworks
+Vitalant
+Vitamin World
+Vivo
+Vocelli Pizza
+voco
+Volcom
+Volkswagen
+Volkswagen Commercial Vehicles
+Volvo
+Volvo Trucks
+vomFASS
+Vons
+Voodoo Doughnut
+Vorwerk
+Vuori
+W Hotels
+WaBa Grill
+Wacoal
+WaFd Bank
+Waffle Cabin
+Waffle House
+Wagamama
+Wagner CAT
+Wahlburgers
+Wahoo's Fish Taco
+Waldorf Astoria
+Walgreens
+Walgreens Healthcare Clinic
+Wall Street English
+Walmart
+Walmart Auto Care Center
+Walmart Energy
+Walmart Garden Center
+Walmart Neighborhood Market
+Walmart Pharmacy
+Walmart Photo Center
+Walmart Supercenter
+Walmart Vision Center
+Walmart Wireless
+Warby Parker
+Ward's Restaurant
+Warhammer
+Warren CAT
+Wasabi
+Wash Me
+Washington County Cooperative Library Services
+Washman
+Washtec
+Washtech
+WatchHouse
+Watermill Express
+Watsons
+Wawa
+Waxing the City
+Wayback Burgers
+WebsterBank
+Weekend Max Mara
+Wegmans
+Wegmans Pharmacy
+Weichert
+Weichert, Realtors
+Weigel's
+Weis
+Weis Gas N' Go
+WellHaven
+WellHaven Pet Health
+WellNow Urgent Care
+Wells Fargo
+Wells Fargo Advisors
+Wells Fargo Private Bank
+Wempe
+Wendy's
+WesBanco
+Wesco
+West Coast Self-Storage
+west elm
+West Marine
+West Virginia DMV Now
+WESTconsin Credit Union
+Western Dental
+Western Dental Kids
+Western Sizzlin'
+Western States CAT
+Western Union
+Westfield
+Westin
+Wetzel's Pretzels
+WeWork
+WFG National Title Company
+WFG National Title Insurance Company
+Whataburger
+Wheel Works
+Wheeler CAT
+Which Wich?
+White Castle
+White House Black Market
+Whole Foods Market
+WHSmith
+Wienerschnitzel
+Wilco
+Wild Bean Cafe
+Wild Birds Unlimited
+Willamette Dental Group
+Williams-Sonoma
+WillScot
+Wilsons Leather
+Wimpy
+Winchell's Donut House
+WinCo Foods
+Windsor
+Wing Zone
+Wingate
+Wings Financial Credit Union
+Wingstop
+WingStreet
+Winkworth
+Winn-Dixie
+Wintrust Financial
+Wok a Holic
+Wok to Walk
+Women'secret
+WonderWaffel
+Woodcraft
+Woodforest National Bank
+Woodman's Markets
+WoodSpring Suites
+Woops!
+Work World
+Workout Anytime
+World Duty Free
+World Electric
+World Finance
+World Gym
+World Market
+Worldhotel
+WorldHotels
+WorldMark by Wyndham
+WSFS Bank
+WSP
+WSS
+Wushiland Boba
+WW Studio
+Wyndham
+Wyndham Garden
+Wyndham Grand
+Wyoming Equipment Company
+X Golf
+Xfinity
+Xi'an Famous Foods
+Xiaomi
+Xing Fu Tang
+XIOS
+XL Parts
+Xpeng
+Xtra Fuels
+XtraMart
+XXI Forever
+Yamaha
+Yankee Candle
+Yard House
+YellowKorner
+Yesway
+YETI
+Yi Fang Tea
+YMCA
+YMCA Child Care
+Yogi Bear's Jellystone Park
+Yogis Grill
+Yogorino
+Yogurt Mountain
+Yogurtland
+Yoshinoya
+YOTEL
+YouBike
+YouFit
+Yum Yum Donuts
+Yumilicious
+Yunshang Rice Noodle
+Yves Rocher
+Z Gallerie
+Z!Eats
+Zadig & Voltaire
+Zagg
+Zales
+Zambrero
+Zara
+Zara Home
+Zaxby's
+Zeeks Pizza
+Zegna
+Zen Leaf
+Zenith
+Zero Degrees
+Zero Latency VR
+Ziebart
+Ziegler CAT
+Zilli
+Zions Bank
+Zip's
+Zippy's
+Zips Dry Cleaning
+Zumiez
+Zurich
+# leaklens additions
+Yellow Cab
+Checker Cab
+AAA Cab
+Veterans Cab
+Budweiser
+Bud Light
+Coors
+Coors Light
+Miller Lite
+Miller High Life
+Michelob Ultra
+Pabst Blue Ribbon
+Corona
+Heineken
+Modelo
+Coca-Cola
+Pepsi
+Dr Pepper
+Mountain Dew
+Red Bull
+Marlboro
+Camel
+Newport
+Lottery
+Powerball
+Mega Millions
+Western Union
+MoneyGram
+Verizon
+T-Mobile
+Uber
+Lyft
+Amazon

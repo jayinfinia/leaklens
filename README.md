@@ -177,6 +177,7 @@ This project builds on the following work. Thank you to the authors.
 - [DotScramble](https://github.com/kareem2099/DotScramble): automatic plate and OCR text redaction.
 
 **Research and tools**
+- **Chain and brand names** (`app/data/brands.txt`): the US-relevant `brand` and `name` tags from the [name-suggestion-index](https://github.com/osmlab/name-suggestion-index) (`data/brands`, commit a070fe6d5b98), licensed **BSD 3-Clause**, Copyright 2026, name-suggestion-index contributors, plus a short list of taxi and product brands added by LeakLens. A sign that only names a chain is never treated as a strong location match.
 - **US city gazetteer** (`app/data/us_cities.csv`): the 2,620 US places with population of 20,000 or more, from [GeoNames](https://www.geonames.org/) (`cities15000`), licensed **CC BY 4.0**, taken from the MIT-licensed [geonamescache](https://github.com/yaph/geonamescache) package (v3.0.2 on PyPI). Reduced to name, state, latitude, longitude and population.
 - *GeoRanker* (NeurIPS 2025, [code](https://github.com/Applied-Machine-Learning-Lab/GeoRanker), Apache-2.0) and *Img2Loc* (SIGIR 2024): a small VLM does far better choosing among retrieved candidates than guessing blind, which motivates the AI second look. Ideas only; no code copied.
 - *G3* (NeurIPS 2024, [code](https://github.com/Applied-Machine-Learning-Lab/G3), Apache-2.0): verifying candidate places with an image-to-GPS encoder, done here with GeoCLIP. Ideas only; no code copied.

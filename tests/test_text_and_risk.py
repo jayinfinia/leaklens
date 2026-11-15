@@ -119,7 +119,9 @@ def test_lookup_uses_region_hint_then_falls_back(monkeypatch):
              box=[0, 0, 1, 1], reason="r", weight=0.4),
     ]
     matches = lookup_mod.lookup(clues, geo)
-    assert calls == ["PARAMOUNT, Virginia"]  # generic text is never searched
+    # generic text is never searched; the name alone is searched once more to
+    # check that it isn't a chain or a name many places share
+    assert calls == ["PARAMOUNT, Virginia", "PARAMOUNT"]
     assert matches[0].clue_id == "txt-1" and "Charlottesville" in matches[0].name
 
 

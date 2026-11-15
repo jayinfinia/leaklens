@@ -34,6 +34,9 @@ BENCH = ROOT / "benchmark"
 CITIES = BENCH / "cities.csv"
 IMAGES = BENCH / "images"
 MANIFEST = IMAGES / "manifest.json"
+# Per-photo corrections to the manifest's ground truth (file, photo_lat, photo_lon, note),
+# applied at run time so a re-fetch does not lose them.
+TRUTH_OVERRIDES = BENCH / "truth_overrides.csv"
 API = "https://commons.wikimedia.org/w/api.php"
 UA = "LeakLens-benchmark/0.1 (https://github.com/jayinfinia/leaklens)"
 OK_LICENSES = ("CC0", "Public domain", "CC BY", "CC BY-SA", "PD")
@@ -72,6 +75,30 @@ def haversine_km(lat1, lon1, lat2, lon2) -> float:
 
 def slug(text: str) -> str:
     return "".join(ch.lower() if ch.isalnum() else "-" for ch in text).strip("-")
+
+
+def load_truth_overrides(path: Path = TRUTH_OVERRIDES) -> dict[str, tuple[float, float]]:
+    """file name -> (photo_lat, photo_lon)."""
+    if not path.exists():
+        return {}
+    with path.open() as f:
+        return {r["file"].strip(): (float(r["photo_lat"]), float(r["photo_lon"]))
+                for r in csv.DictReader(f) if (r.get("file") or "").strip() and r.get("photo_lat")}
+
+
+def apply_truth_overrides(items: list[dict], overrides: dict[str, tuple[float, float]]) -> list[dict]:
+    out = []
+    for i in items:
+        if i["file"] in overrides:
+            lat, lon = overrides[i["file"]]
+            i = {**i, "photo_lat": lat, "photo_lon": lon, "truth_override": True}
+        out.append(i)
+    return out
+
+
+def _km(v) -> str:
+    """A distance cell: 0.0 is a real distance, only '' means none."""
+    return "-" if v == "" or v is None else str(v)
 
 
 def load_cities() -> list[dict]:
@@ -171,6 +198,7 @@ def run(keep_exif: bool, limit: int | None, lookup: bool = False, safe: bool = T
     if not MANIFEST.exists():
         sys.exit("No photos yet. Run:  python scripts/benchmark.py fetch")
     items = [i for i in json.loads(MANIFEST.read_text()) if i["file"] not in EXCLUDE]
+    items = apply_truth_overrides(items, load_truth_overrides())
     if only:
         items = [i for i in items if only in i["file"]]
     items = items[:limit]
@@ -280,7 +308,7 @@ def run(keep_exif: bool, limit: int | None, lookup: bool = False, safe: bool = T
         }
         rows.append(row)
         print(f"[{n:>2}/{len(items)}] {item['city']:<16} pred={row['pred_state'] or row['pred_country']:<18} "
-              f"{'✓' if row['state_top1'] else '·'} best={row['best_error_km'] or '-':>7} km ({row['best_source'] or '-'}"
+              f"{'✓' if row['state_top1'] else '·'} best={_km(row['best_error_km']):>7} km ({row['best_source'] or '-'}"
               f"{': ' + row['best_place'] if row['best_place'] else ''})  "
               f"risk {row['risk_before']:>3} → {row['risk_after']:>3}  ({t_analyze:.1f}s)")
 
@@ -370,9 +398,9 @@ def summarize(rows: list[dict], keep_exif: bool, mock: bool, lookup: bool = Fals
     for r in rows:
         lines.append(
             f"| {r['city']} ({r['file']}) | {r['pred_state'] or r['pred_country']} | {'✓' if r['state_top1'] else ''} | "
-            f"{r['best_error_km'] or '-'} ({r['best_source'] or '-'}{': ' + r['best_place'] if r['best_place'] else ''}) | "
+            f"{_km(r['best_error_km'])} ({r['best_source'] or '-'}{': ' + r['best_place'] if r['best_place'] else ''}) | "
             f"{r['ai_guess'] or r['ai_error'][:40] or '-'} | "
-            f"{r['pin_error_km'] or '-'} | {r['top_clue'] or '-'} | {r['risk_before']} → {r['risk_after']} |")
+            f"{_km(r['pin_error_km'])} | {r['top_clue'] or '-'} | {r['risk_before']} → {r['risk_after']} |")
     lines += ["", "## Photo credits", ""]
     for r in rows:
         lines.append(f"- {r['file']}: {r['artist'] or 'unknown'}, {r['license']}, {r['source']}")

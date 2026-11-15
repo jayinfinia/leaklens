@@ -177,6 +177,8 @@ def run(keep_exif: bool, limit: int | None, lookup: bool = False, safe: bool = T
 
     out_dir = BENCH / "results" / datetime.now().strftime("%Y%m%d-%H%M%S")
     out_dir.mkdir(parents=True)
+    dump_dir = out_dir / "evidence"
+    dump_dir.mkdir()
     rows = []
 
     if not config.MOCK_MODE:
@@ -209,6 +211,18 @@ def run(keep_exif: bool, limit: int | None, lookup: bool = False, safe: bool = T
             ids, after = [], a
         t_safe = time.perf_counter() - t0
         bg = best_guess(a)
+        if dump_dir is not None:  # everything needed to replay and tune the fusion offline
+            from app.pipeline import fuse as _fuse
+            ev = {"file": item["file"], "city": item["city"], "state": item["state"],
+                  "truth": [truth_lat, truth_lon], "analysis": a.model_dump(mode="json", exclude={"preview_b64"}),
+                  "fuse": dict(_fuse.LAST)}
+            try:
+                from app.pipeline.geolocate import scorer as _scorer
+                ev["verify_truth"] = _scorer(upright).score([(truth_lat, truth_lon)])[0]
+            except Exception as exc:
+                ev["verify_truth"] = None
+                print(f"  (truth verification failed: {exc})")
+            (dump_dir / (Path(item["file"]).stem + ".json")).write_text(json.dumps(ev))
         best_km = haversine_km(bg[0], bg[1], truth_lat, truth_lon) if bg else None
         ai = a.ai
         ai_g = next((g for g in (ai.guesses if ai else []) if g.lat is not None), None)

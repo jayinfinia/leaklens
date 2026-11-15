@@ -238,9 +238,14 @@ def _why(c: Candidate, geo: Geolocation, verify: float | None) -> str:
     return ("Because " + "; ".join(bits) + ".") if bits else "Best of weak signals."
 
 
+# The last call's candidates and GeoCLIP scores, for the benchmark's evidence dump.
+LAST: dict = {}
+
+
 def fuse(geo: Geolocation, ai: AIReading | None = None, matches: list[TextMatch] | None = None,
          scorer=None, exif: ExifReport | None = None) -> BestGuess | None:
     matches = matches or []
+    LAST.clear()
     if exif is not None and exif.gps:
         name, _ = gz.describe(exif.gps.lat, exif.gps.lon)
         return BestGuess(lat=exif.gps.lat, lon=exif.gps.lon, place=name or "GPS position",
@@ -262,6 +267,9 @@ def fuse(geo: Geolocation, ai: AIReading | None = None, matches: list[TextMatch]
         except Exception as exc:
             print(f"[leaklens] GeoCLIP verification failed: {exc}")
     score_candidates(cands, geo, ai, verify)
+    LAST.clear()
+    LAST.update(candidates=[dict(lat=c.lat, lon=c.lon, place=c.place, source=c.source, value=c.value,
+                                 score=c.score, parts=c.parts) for c in cands], verify=verify)
     order = sorted(range(len(cands)), key=lambda i: (-round(cands[i].score, 6), PRIORITY[cands[i].source]))
     i = order[0]
     best = cands[i]

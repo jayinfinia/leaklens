@@ -271,6 +271,8 @@ def _pct(xs) -> str:
 
 
 def summarize(rows: list[dict], keep_exif: bool, mock: bool, lookup: bool = False) -> str:
+    defaults = {"best_source": "", "best_error_km": "", "ai_guess": "", "ai_error_km": "", "ai_error": "", "file": ""}
+    rows = [{**defaults, **r} for r in rows]
     kms = [r["pin_error_km"] for r in rows if r["pin_error_km"] != ""]
     drop = [r["risk_before"] - r["risk_after"] for r in rows]
     lines = [
@@ -330,12 +332,12 @@ def summarize(rows: list[dict], keep_exif: bool, mock: bool, lookup: bool = Fals
         "",
         "## Per photo",
         "",
-        "| File | Predicted | State ✓ | Best err (km, source) | AI guess | Pin err (km) | Top clue | Risk before → after |",
+        "| City (file) | Predicted | State ✓ | Best err (km, source) | AI guess | Pin err (km) | Top clue | Risk before → after |",
         "|---|---|---|---|---|---|---|---|",
     ]
     for r in rows:
         lines.append(
-            f"| {r['file']} | {r['pred_state'] or r['pred_country']} | {'✓' if r['state_top1'] else ''} | "
+            f"| {r['city']} ({r['file']}) | {r['pred_state'] or r['pred_country']} | {'✓' if r['state_top1'] else ''} | "
             f"{r['best_error_km'] or '-'} ({r['best_source'] or '-'}) | {r['ai_guess'] or r['ai_error'][:40] or '-'} | "
             f"{r['pin_error_km'] or '-'} | {r['top_clue'] or '-'} | {r['risk_before']} → {r['risk_after']} |")
     lines += ["", "## Photo credits", ""]
